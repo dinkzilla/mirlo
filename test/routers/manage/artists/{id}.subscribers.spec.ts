@@ -3,12 +3,14 @@ import assert from "node:assert";
 import * as dotenv from "dotenv";
 dotenv.config();
 import { describe, it } from "mocha";
+
 import {
   clearTables,
   createArtist,
   createTier,
   createUser,
 } from "../../../utils";
+
 import prisma from "@mirlo/prisma";
 
 import { requestApp } from "../../utils";
@@ -52,6 +54,60 @@ describe("manage/artists/{artistId}/subscribers", () => {
       assert.equal(response.statusCode, 200);
       assert.equal(response.header["content-type"], "text/csv; charset=utf-8");
       assert.equal(response.text.split(",")[0], '"Email"');
+    });
+
+    it("should include shipping address and name in the csv", async () => {
+      const { user, accessToken } = await createUser({ email: "test@testcom" });
+      const { user: subscriber } = await createUser({
+        email: "subscriber1@email.com",
+        name: "Subscriber One",
+      });
+      const artist = await createArtist(user.id);
+      const tier = await createTier(artist.id, { isDefaultTier: true });
+
+      await prisma.profileUserSubscription.create({
+        data: {
+          userId: subscriber.id,
+          profileSubscriptionTierId: tier.id,
+          amount: 500,
+          shippingAddress: {
+            name: "Jane Doe",
+            address: {
+              line1: "123 Main St",
+              line2: "Apt 4",
+              city: "Springfield",
+              state: "IL",
+              postal_code: "62704",
+              country: "US",
+            },
+          },
+        },
+      });
+
+      const response = await requestApp
+        .get(`manage/artists/${artist.id}/subscribers?format=csv`)
+        .set("Cookie", [`jwt=${accessToken}`])
+        .set("Accept", "application/json");
+
+      assert.equal(response.statusCode, 200);
+
+      const [header, row] = response.text.trim().split("\n");
+
+      assert(header.includes('"Shipping Name"'));
+      assert(header.includes('"Shipping Address Line 1"'));
+      assert(header.includes('"Shipping Address Line 2"'));
+      assert(header.includes('"Shipping City"'));
+      assert(header.includes('"Shipping State"'));
+      assert(header.includes('"Shipping Postal Code"'));
+      assert(header.includes('"Shipping Country"'));
+
+      assert(row.includes('"Jane Doe"'));
+      assert(row.includes('"123 Main St"'));
+      assert(row.includes('"Apt 4"'));
+      assert(row.includes('"Springfield"'));
+      assert(row.includes('"IL"'));
+      assert(row.includes('"62704"'));
+      assert(row.includes('"US"'));
     });
   });
 

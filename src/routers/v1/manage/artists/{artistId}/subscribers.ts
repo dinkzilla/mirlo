@@ -8,11 +8,11 @@ import {
   userAuthenticated,
 } from "../../../../../auth/passport";
 import logger from "../../../../../logger";
+import { serializeProfileUserSubscription } from "../../../../../serializers/profileUserSubscription";
 import { findArtistIdForURLSlug } from "../../../../../utils/artist";
 import { downloadCSVFile } from "../../../../../utils/download";
 import { AppError } from "../../../../../utils/error";
 import { grantSubscriptionTierReleases } from "../../../../../utils/subscriptionTier";
-import { serializeProfileUserSubscription } from "../../../../../serializers/profileUserSubscription";
 
 const csvColumns = [
   {
@@ -46,6 +46,34 @@ const csvColumns = [
   {
     label: "Updated At",
     value: "updatedAt",
+  },
+  {
+    label: "Shipping Name",
+    value: "shippingAddress.name",
+  },
+  {
+    label: "Shipping Address Line 1",
+    value: "shippingAddress.address.line1",
+  },
+  {
+    label: "Shipping Address Line 2",
+    value: "shippingAddress.address.line2",
+  },
+  {
+    label: "Shipping City",
+    value: "shippingAddress.address.city",
+  },
+  {
+    label: "Shipping State",
+    value: "shippingAddress.address.state",
+  },
+  {
+    label: "Shipping Postal Code",
+    value: "shippingAddress.address.postal_code",
+  },
+  {
+    label: "Shipping Country",
+    value: "shippingAddress.address.country",
   },
 ];
 
@@ -86,6 +114,7 @@ export default function () {
               name: true,
             },
           },
+          shippingAddress: true,
           nextBillingDate: true,
           profileSubscriptionTier: true,
           profileUserSubscriptionCharges: {
