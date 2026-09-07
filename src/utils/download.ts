@@ -4,7 +4,7 @@ import { Parser } from "json2csv";
 export const downloadCSVFile = (
   res: Response,
   fileName: string,
-  fields: { label: string; value: string }[],
+  fields: { label: string; value: string | ((row: any) => any) }[],
   data: { [key: string]: any }
 ) => {
   const json2csv = new Parser({ fields });

@@ -15,6 +15,17 @@ import prisma from "@mirlo/prisma";
 
 import { requestApp } from "../../utils";
 
+// Splits the (quoted, comma-separated) header + first data row of a CSV
+// response into arrays, so tests can look up a value by column label
+// regardless of column order. Only safe when no value contains a comma.
+const parseCsvRow = (csvText: string) => {
+  const [headerLine, rowLine] = csvText.trim().split("\n");
+  const stripQuotes = (line: string) =>
+    line.split(",").map((cell) => cell.replace(/^"|"$/g, ""));
+
+  return { columns: stripQuotes(headerLine), values: stripQuotes(rowLine) };
+};
+
 describe("manage/artists/{artistId}/subscribers", () => {
   beforeEach(async () => {
     try {
@@ -108,6 +119,77 @@ describe("manage/artists/{artistId}/subscribers", () => {
       assert(row.includes('"IL"'));
       assert(row.includes('"62704"'));
       assert(row.includes('"US"'));
+    });
+
+    it("should show a next renew date for an active subscription and no cancel at date", async () => {
+      const { user, accessToken } = await createUser({ email: "test@testcom" });
+      const { user: subscriber } = await createUser({
+        email: "subscriber1@email.com",
+      });
+      const artist = await createArtist(user.id);
+      const tier = await createTier(artist.id, { isDefaultTier: true });
+      const nextBillingDate = new Date("2026-10-01T00:00:00.000Z");
+
+      await prisma.profileUserSubscription.create({
+        data: {
+          userId: subscriber.id,
+          profileSubscriptionTierId: tier.id,
+          amount: 500,
+          stripeSubscriptionKey: "sub_123",
+          nextBillingDate,
+        },
+      });
+
+      const response = await requestApp
+        .get(`manage/artists/${artist.id}/subscribers?format=csv`)
+        .set("Cookie", [`jwt=${accessToken}`])
+        .set("Accept", "application/json");
+
+      assert.equal(response.statusCode, 200);
+
+      const { columns, values } = parseCsvRow(response.text);
+
+      assert.equal(
+        values[columns.indexOf("Next Renew Date")],
+        nextBillingDate.toISOString()
+      );
+      assert.equal(values[columns.indexOf("Cancel At")], "");
+    });
+
+    it("should show a cancel at date (and no next renew date) for a subscription scheduled to cancel", async () => {
+      const { user, accessToken } = await createUser({ email: "test@testcom" });
+      const { user: subscriber } = await createUser({
+        email: "subscriber1@email.com",
+      });
+      const artist = await createArtist(user.id);
+      const tier = await createTier(artist.id, { isDefaultTier: true });
+      const nextBillingDate = new Date("2026-10-01T00:00:00.000Z");
+
+      await prisma.profileUserSubscription.create({
+        data: {
+          userId: subscriber.id,
+          profileSubscriptionTierId: tier.id,
+          amount: 500,
+          stripeSubscriptionKey: "sub_123",
+          nextBillingDate,
+          deleteReason: "USER_CANCELLED",
+        },
+      });
+
+      const response = await requestApp
+        .get(`manage/artists/${artist.id}/subscribers?format=csv`)
+        .set("Cookie", [`jwt=${accessToken}`])
+        .set("Accept", "application/json");
+
+      assert.equal(response.statusCode, 200);
+
+      const { columns, values } = parseCsvRow(response.text);
+
+      assert.equal(values[columns.indexOf("Next Renew Date")], "");
+      assert.equal(
+        values[columns.indexOf("Cancel At")],
+        nextBillingDate.toISOString()
+      );
     });
   });
 

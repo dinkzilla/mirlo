@@ -40,6 +40,16 @@ const csvColumns = [
     value: "artistSubscriptionTier.name",
   },
   {
+    label: "Next Renew Date",
+    value: (row: { deleteReason?: string | null; nextBillingDate?: Date }) =>
+      row.deleteReason ? "" : (row.nextBillingDate ?? ""),
+  },
+  {
+    label: "Cancel At",
+    value: (row: { deleteReason?: string | null; nextBillingDate?: Date }) =>
+      row.deleteReason ? (row.nextBillingDate ?? "") : "",
+  },
+  {
     label: "Created At",
     value: "createdAt",
   },
