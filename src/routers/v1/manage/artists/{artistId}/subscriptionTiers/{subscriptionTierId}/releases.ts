@@ -6,9 +6,10 @@ import {
   artistBelongsToLoggedInUser,
   userAuthenticated,
 } from "../../../../../../../auth/passport";
+import { processSingleTrackGroup } from "../../../../../../../serializers/trackGroup";
 import { AppError } from "../../../../../../../utils/error";
 import { doesSubscriptionTierBelongToUser } from "../../../../../../../utils/ownership";
-import { processSingleTrackGroup } from "../../../../../../../serializers/trackGroup";
+import { grantReleaseToExistingSubscribers } from "../../../../../../../utils/subscriptionTier";
 
 type Params = {
   profileId: string;
@@ -164,6 +165,11 @@ export default function () {
             },
           },
         },
+      });
+
+      await grantReleaseToExistingSubscribers({
+        tierId: Number(subscriptionTierId),
+        trackGroupId: Number(trackGroupId),
       });
 
       res.status(201).json({
