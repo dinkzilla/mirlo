@@ -136,3 +136,37 @@ export const grantSubscriptionTierReleases = async ({
 
   return releases.length;
 };
+
+export const grantReleaseToExistingSubscribers = async ({
+  tierId,
+  trackGroupId,
+}: {
+  tierId: number;
+  trackGroupId: number;
+}) => {
+  const subscriptions = await prisma.profileUserSubscription.findMany({
+    where: { profileSubscriptionTierId: tierId },
+    select: { userId: true },
+  });
+
+  await Promise.all(
+    subscriptions.map((subscription) =>
+      prisma.userTrackGroupPurchase.upsert({
+        where: {
+          userId_trackGroupId: {
+            userId: subscription.userId,
+            trackGroupId,
+          },
+        },
+        update: {},
+        create: {
+          userId: subscription.userId,
+          trackGroupId,
+          proGratis: true,
+        },
+      })
+    )
+  );
+
+  return subscriptions.length;
+};

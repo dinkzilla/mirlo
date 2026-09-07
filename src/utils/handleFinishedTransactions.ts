@@ -81,36 +81,21 @@ export const getFeesFromPaymentIntent = async (
   };
 };
 
-// A transaction's value in the PLATFORM's settlement currency (see the schema
-// comment on UserTransaction for why we freeze it at charge time). This is the
-// processor-agnostic contract: fields map 1:1 to the UserTransaction columns, so
-// a future processor just supplies its own populator returning this same shape.
 export type PlatformCurrencyValue = {
   platformCurrencyAmount: number | null; // `amount` converted to platformCurrency, in cents
   platformCurrency: string | null;
   exchangeRate: number | null;
 };
 
-// Used when no platform-currency value is known (Checkout Session, free
-// purchases, or a failed FX lookup). Spread into create data to set all columns.
 export const EMPTY_PLATFORM_CURRENCY_VALUE: PlatformCurrencyValue = {
   platformCurrencyAmount: null,
   platformCurrency: null,
   exchangeRate: null,
 };
 
-// Shorthand for the `...(x ?? EMPTY_PLATFORM_CURRENCY_VALUE)` spread repeated at
-// every UserTransaction.create() call site.
 export const withPlatformCurrency = (value?: PlatformCurrencyValue) =>
   value ?? EMPTY_PLATFORM_CURRENCY_VALUE;
 
-// Reuses the presentment->platform exchange_rate that Stripe applied to the
-// application fee (the only part of the charge that lands on the platform) and
-// applies it to the full amount. Returns nulls when there's no application fee
-// (e.g. shouldSkipPlatformFee's MX/BR / 0% paths) — those rows drop out of
-// platform-currency aggregates. PaymentIntent flows only (online + terminal).
-// Never throws: errors fall back to nulls (logged) so they can't block the
-// purchase, letting callers use the result without a try/catch.
 export const getPlatformCurrencyValueFromIntent = async (
   paymentIntent: Stripe.PaymentIntent,
   stripeAccount: string
@@ -193,11 +178,6 @@ const getApplicationFee = async (session?: Stripe.Checkout.Session) => {
 
     return fees;
   } catch (error) {
-    // A fee lookup failure must not abort recording the purchase or sending its
-    // confirmation emails — otherwise the charge succeeds in Stripe but leaves
-    // no record in Mirlo and notifies no one. Fall back to zero fees (same as
-    // when the metadata is missing above) and log loudly so it can be
-    // reconciled. The purchase still gets recorded.
     logger.error(
       `Error retrieving application fee for session ${session?.id}, recording purchase without fee details:`,
       error

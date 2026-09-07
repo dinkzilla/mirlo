@@ -1,4 +1,5 @@
 import prisma from "@mirlo/prisma";
+
 import logger from "../logger";
 import { autoPurchaseNewAlbumsQueue } from "../queues/auto-purchase-new-albums-queue";
 
@@ -35,8 +36,24 @@ export async function triggerAutoPurchaseNewAlbums() {
         },
         deletedAt: null,
         profileSubscriptionTier: {
-          profileId: album.profileId,
           autoPurchaseAlbums: true,
+          OR: [
+            { profileId: album.profileId },
+            // Tier belongs to a label the album's artist is affiliated with
+            {
+              profile: {
+                user: {
+                  artistLabels: {
+                    some: {
+                      artistId: album.profileId,
+                      isLabelApproved: true,
+                      isArtistApproved: true,
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       },
       select: {
