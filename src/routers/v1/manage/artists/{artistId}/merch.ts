@@ -23,11 +23,11 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params;
+    const artistId = res.locals.artistId as number;
     try {
       const results = await prisma.merch.findMany({
         where: {
-          profileId: Number(artistId),
+          profileId: artistId,
           deletedAt: null,
         },
         orderBy: [
@@ -78,7 +78,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const artistId = Number(req.params.artistId);
+    const artistId = res.locals.artistId as number;
     const { title, description } = req.body;
     assertLoggedIn(req);
     const user = req.user;

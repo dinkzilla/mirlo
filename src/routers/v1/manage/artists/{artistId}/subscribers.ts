@@ -9,9 +9,7 @@ import {
 } from "../../../../../auth/passport";
 import logger from "../../../../../logger";
 import { serializeProfileUserSubscription } from "../../../../../serializers/profileUserSubscription";
-import { findArtistIdForURLSlug } from "../../../../../utils/artist";
 import { downloadCSVFile } from "../../../../../utils/download";
-import { AppError } from "../../../../../utils/error";
 import { grantSubscriptionTierReleases } from "../../../../../utils/subscriptionTier";
 
 const csvColumns = [
@@ -94,22 +92,13 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    let { artistId }: { artistId?: string } = req.params;
+    const artistId = res.locals.artistId as number;
 
     try {
-      const parsedId = await findArtistIdForURLSlug(artistId);
-
-      if (!parsedId) {
-        throw new AppError({
-          httpCode: 400,
-          description: "Invalid artist id",
-        });
-      }
-
       const subscribers = await prisma.profileUserSubscription.findMany({
         where: {
           profileSubscriptionTier: {
-            profileId: parsedId,
+            profileId: artistId,
             deletedAt: null,
           },
           deletedAt: null,
@@ -194,7 +183,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    let { artistId }: { artistId?: string } = req.params;
+    const artistId = res.locals.artistId as number;
 
     const { subscribers, artistSubscriptionTierId } = req.body as {
       subscribers: { email: string }[];
@@ -202,29 +191,20 @@ export default function () {
     };
 
     try {
-      const parsedArtistId = await findArtistIdForURLSlug(artistId);
-
-      if (!parsedArtistId) {
-        throw new AppError({
-          httpCode: 400,
-          description: "Invalid artist id",
-        });
-      }
-
       // When a specific tier is requested, add subscribers to it; otherwise
       // fall back to the artist's default (follow) tier.
       const tier = artistSubscriptionTierId
         ? await prisma.profileSubscriptionTier.findFirst({
             where: {
               id: Number(artistSubscriptionTierId),
-              profileId: parsedArtistId,
+              profileId: artistId,
               deletedAt: null,
             },
           })
         : await prisma.profileSubscriptionTier.findFirst({
             where: {
               isDefaultTier: true,
-              profileId: parsedArtistId,
+              profileId: artistId,
             },
           });
 

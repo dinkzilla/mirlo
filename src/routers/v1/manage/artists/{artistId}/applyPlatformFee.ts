@@ -6,21 +6,17 @@ import {
 } from "../../../../../auth/passport";
 import { AppError } from "../../../../../utils/error";
 
-type Params = {
-  artistId: string;
-};
-
 export default function () {
   const operations = {
     POST: [userAuthenticated, profileBelongsToLoggedInUser, POST],
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
 
     try {
       const profile = await prisma.profile.findFirst({
-        where: { id: Number(profileId) },
+        where: { id: profileId },
         select: { id: true, defaultPlatformFee: true },
       });
 

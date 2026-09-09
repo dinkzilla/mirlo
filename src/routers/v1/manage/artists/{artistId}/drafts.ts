@@ -9,23 +9,19 @@ import {
 import { deleteProfile } from "../../../../../utils/artist";
 import { processSingleTrackGroup } from "../../../../../serializers/trackGroup";
 
-type Params = {
-  artistId: string;
-};
-
 export default function () {
   const operations = {
     GET: [userAuthenticated, profileBelongsToLoggedInUser, GET],
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
 
     try {
       let draftAlbum = await prisma.trackGroup.findFirst({
         where: {
           isHiddenTrackGroupForSongDrafts: true,
-          profileId: Number(profileId),
+          profileId: profileId,
         },
         include: {
           tracks: {
@@ -41,7 +37,7 @@ export default function () {
           data: {
             isHiddenTrackGroupForSongDrafts: true,
             urlSlug: "hidden-draft-album",
-            profileId: Number(profileId),
+            profileId: profileId,
           },
           include: {
             tracks: {
@@ -88,12 +84,12 @@ export default function () {
   };
 
   async function DELETE(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     assertLoggedIn(req);
     const user = req.user;
 
     try {
-      await deleteProfile(Number(user.id), Number(profileId));
+      await deleteProfile(Number(user.id), profileId);
     } catch (e) {
       return next(e);
     }

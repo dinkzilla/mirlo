@@ -16,7 +16,7 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params;
+    const artistId = res.locals.artistId as number;
     const {
       skip = 0,
       take = 10,
@@ -31,7 +31,7 @@ export default function () {
 
     try {
       const where = {
-        profileId: Number(artistId),
+        profileId: artistId,
         ...(isDraft !== undefined ? { isDraft: isDraft === "true" } : {}),
         ...(isScheduled === "true"
           ? { publishedAt: { gt: new Date() } }
@@ -63,7 +63,7 @@ export default function () {
   }
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params;
+    const artistId = res.locals.artistId as number;
     const {
       title,
       content,
@@ -84,7 +84,7 @@ export default function () {
 
     try {
       const artist = await prisma.profile.findFirst({
-        where: { id: Number(artistId) },
+        where: { id: artistId },
         select: { id: true },
       });
 
@@ -93,7 +93,7 @@ export default function () {
       }
 
       const mostRecentPost = await prisma.post.findFirst({
-        where: { profileId: Number(artistId), deletedAt: null },
+        where: { profileId: artistId, deletedAt: null },
         orderBy: { createdAt: "desc" },
         select: { minimumSubscriptionTierId: true, shouldSendEmail: true },
       });
@@ -106,11 +106,11 @@ export default function () {
       let validTier;
       if (resolvedTierId) {
         validTier = await prisma.profileSubscriptionTier.findFirst({
-          where: { profileId: Number(artistId), id: resolvedTierId },
+          where: { profileId: artistId, id: resolvedTierId },
         });
       } else {
         validTier = await prisma.profileSubscriptionTier.findFirst({
-          where: { profileId: Number(artistId), isDefaultTier: true },
+          where: { profileId: artistId, isDefaultTier: true },
         });
         if (!validTier) {
           await prisma.profileSubscriptionTier.create({
@@ -123,7 +123,7 @@ export default function () {
             },
           });
           validTier = await prisma.profileSubscriptionTier.findFirst({
-            where: { profileId: Number(artistId), isDefaultTier: true },
+            where: { profileId: artistId, isDefaultTier: true },
           });
         }
       }
@@ -136,7 +136,7 @@ export default function () {
             isPublic,
             publishedAt,
             shouldSendEmail: resolvedShouldSendEmail,
-            profile: { connect: { id: Number(artistId) } },
+            profile: { connect: { id: artistId } },
             minimumSubscriptionTier: { connect: { id: validTier.id } },
           },
         });

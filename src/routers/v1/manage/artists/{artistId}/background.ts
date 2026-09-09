@@ -11,11 +11,6 @@ import { deleteProfileBackground } from "../../../../../utils/artist";
 import { AppError } from "../../../../../utils/error";
 import { busboyOptions } from "../../../../../utils/images";
 
-type Params = {
-  artistId: string;
-  userId: string;
-};
-
 export default function () {
   const operations = {
     PUT: [
@@ -28,11 +23,11 @@ export default function () {
   };
 
   async function PUT(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
 
     try {
       const { jobId, imageId } = await processProfileBackground({ req, res })(
-        Number(profileId)
+        profileId
       );
 
       res.json({ result: { jobId, imageId } });
@@ -75,13 +70,13 @@ export default function () {
   };
 
   async function DELETE(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     assertLoggedIn(req);
     const loggedInUser = req.user;
     try {
       const profile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
           userId: loggedInUser.id,
         },
       });
