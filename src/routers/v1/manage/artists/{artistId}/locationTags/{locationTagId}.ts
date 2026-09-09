@@ -34,8 +34,8 @@ export default function () {
         in: "path",
         name: "artistId",
         required: true,
-        type: "integer",
-        description: "Artist ID",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "path",
