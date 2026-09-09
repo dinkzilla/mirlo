@@ -10,7 +10,7 @@ export default function () {
     PUT: [userAuthenticated, PUT],
   };
   async function PUT(req: Request, res: Response, next: NextFunction) {
-    let { artistId }: { artistId?: string; labelUserId?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     let { labelUserId, isLabelApproved } = req.body as unknown as {
       labelUserId?: string;
       isLabelApproved?: boolean;
@@ -28,14 +28,14 @@ export default function () {
 
       const artist = await prisma.profile.findUnique({
         where: {
-          id: Number(artistId),
+          id: artistId,
         },
       });
 
       await prisma.artistLabel.updateMany({
         where: {
           labelUserId: Number(labelUserId),
-          artistId: Number(artistId),
+          artistId: artistId,
         },
         data: {
           isLabelApproved,
@@ -50,7 +50,7 @@ export default function () {
 
       const labels = await prisma.artistLabel.findMany({
         where: {
-          artistId: Number(artistId),
+          artistId: artistId,
         },
       });
       res.json({

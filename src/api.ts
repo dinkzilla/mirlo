@@ -92,8 +92,6 @@ apiApp.use(
 // validator sees them.
 apiApp.use("/oembed", dedupeQueryParams(["url", "format"]));
 
-// Must be registered before initialize() so express attaches the param
-// hooks to the routes express-openapi creates.
 registerRouteParamResolvers(apiApp);
 
 initialize({
