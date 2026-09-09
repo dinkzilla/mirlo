@@ -129,7 +129,7 @@ export default function () {
         })),
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/labels ${e}`);
+      console.error(`/v1/manage/artists/{artistId}/labels ${e}`);
       res.status(400);
     }
   }

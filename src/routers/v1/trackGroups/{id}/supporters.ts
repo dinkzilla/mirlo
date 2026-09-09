@@ -115,7 +115,7 @@ export default function () {
         totalPledges: pledges.length,
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/followers ${e}`);
+      console.error(`/v1/trackGroups/{id}/supporters ${e}`);
       res.status(400);
     }
   }

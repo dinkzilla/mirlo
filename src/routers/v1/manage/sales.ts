@@ -136,7 +136,7 @@ export default function () {
         totalSupporters,
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/followers ${e}`);
+      console.error(`/v1/manage/sales ${e}`);
       res.status(400);
     }
   }
