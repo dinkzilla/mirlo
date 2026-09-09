@@ -85,9 +85,11 @@ export default function () {
     summary: "Get all trackgroups belonging to a user",
     parameters: [
       {
-        in: "query",
+        in: "path",
         name: "artistId",
-        type: "number",
+        required: true,
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {
