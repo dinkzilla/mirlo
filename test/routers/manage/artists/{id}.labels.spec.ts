@@ -334,7 +334,6 @@ describe("manage/artists/{artistId}/labels", () => {
       const operations = labelsEndpoint();
       const mockReq = {
         user: labelUser,
-        params: { artistId: artist.id.toString() },
         body: {
           labelUserId: labelUser.id,
           isLabelApproved: true,
@@ -344,6 +343,7 @@ describe("manage/artists/{artistId}/labels", () => {
       const mockRes = {
         json: sinon.stub().returnsThis(),
         status: sinon.stub().returnsThis(),
+        locals: { artistId: artist.id },
       } as any;
 
       const mockNext = sinon.stub();
@@ -386,7 +386,6 @@ describe("manage/artists/{artistId}/labels", () => {
       const operations = labelsEndpoint();
       const mockReq = {
         user: labelUser,
-        params: { artistId: artist.id.toString() },
         body: {
           labelUserId: labelUser.id,
           isLabelApproved: true,
@@ -395,6 +394,7 @@ describe("manage/artists/{artistId}/labels", () => {
 
       const mockRes = {
         json: sinon.stub().returnsThis(),
+        locals: { artistId: artist.id },
       } as any;
 
       const mockNext = sinon.stub();
@@ -435,7 +435,6 @@ describe("manage/artists/{artistId}/labels", () => {
       const operations = labelsEndpoint();
       const mockReq = {
         user: labelUser,
-        params: { artistId: artist.id.toString() },
         body: {
           labelUserId: labelUser.id,
           isLabelApproved: true,
@@ -444,6 +443,7 @@ describe("manage/artists/{artistId}/labels", () => {
 
       const mockRes = {
         json: sinon.stub().returnsThis(),
+        locals: { artistId: artist.id },
       } as any;
 
       const mockNext = sinon.stub();
@@ -502,7 +502,6 @@ describe("manage/artists/{artistId}/labels", () => {
       const operations = labelsEndpoint();
       const mockReq = {
         user: labelUser,
-        params: { artistId: artist.id.toString() },
         body: {
           labelUserId: labelUser.id,
           isLabelApproved: true,
@@ -511,6 +510,7 @@ describe("manage/artists/{artistId}/labels", () => {
 
       const mockRes = {
         json: sinon.stub().returnsThis(),
+        locals: { artistId: artist.id },
       } as any;
 
       const mockNext = sinon.stub();
@@ -555,13 +555,12 @@ describe("manage/artists/{artistId}/labels", () => {
       const operations = labelsEndpoint();
       const mockReq = {
         user: labelUser,
-        params: { artistId: artist.id.toString() },
         body: {
           isLabelApproved: true,
         },
       } as any;
 
-      const mockRes = {} as any;
+      const mockRes = { locals: { artistId: artist.id } } as any;
       const mockNext = sinon.stub();
 
       const postHandler = operations.POST[operations.POST.length - 1];
@@ -582,14 +581,13 @@ describe("manage/artists/{artistId}/labels", () => {
       const operations = labelsEndpoint();
       const mockReq = {
         user: labelUser,
-        params: { artistId: "99999" },
         body: {
           labelUserId: labelUser.id,
           isLabelApproved: true,
         },
       } as any;
 
-      const mockRes = {} as any;
+      const mockRes = { locals: { artistId: 99999 } } as any;
       const mockNext = sinon.stub();
 
       const postHandler = operations.POST[operations.POST.length - 1];

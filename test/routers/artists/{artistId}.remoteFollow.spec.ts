@@ -51,7 +51,7 @@ describe("artists/{artistId}/remoteFollow", () => {
   const callHandler = (artistId: number, query: object) => {
     mockRes.locals.artistId = artistId;
     return getHandler()(
-      { params: {}, query } as unknown as Request,
+      { query } as unknown as Request,
       mockRes,
       mockNext as unknown as Parameters<ReturnType<typeof getHandler>>[2]
     );
