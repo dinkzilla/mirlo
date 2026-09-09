@@ -5,7 +5,6 @@ import { userLoggedInWithoutRedirect } from "../../../../auth/passport";
 import { serializeProfile } from "../../../../serializers/artist";
 import {
   checkIsUserSubscriber,
-  findProfileIdForURLSlug,
   singleInclude,
   whereForAllProfilesThisLabelCanEdit,
 } from "../../../../utils/artist";
@@ -16,57 +15,51 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    let { id }: { id?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     const { includeDefaultTier: includeDefaultTierStr } = req.query as {
       includeDefaultTier?: string;
     };
     const includeDefaultTier = includeDefaultTierStr === "true";
     const loggedInUser = req.user;
-    if (!id || id === "undefined") {
-      return res.status(400).json({ error: "Invalid artist ID" });
-    }
     try {
-      const parsedId = await findProfileIdForURLSlug(id);
-      let isUserSubscriber = false;
-      if (parsedId) {
-        const canManage =
-          !!loggedInUser &&
-          (await prisma.profile.findFirst({
-            where: {
-              id: parsedId,
-              enabled: true,
-              ...whereForAllProfilesThisLabelCanEdit(loggedInUser.id),
-            },
-            select: { id: true },
-          })) !== null;
-
-        const profile = await prisma.profile.findFirst({
+      const canManage =
+        !!loggedInUser &&
+        (await prisma.profile.findFirst({
           where: {
-            id: parsedId,
+            id: artistId,
             enabled: true,
+            ...whereForAllProfilesThisLabelCanEdit(loggedInUser.id),
           },
-          include: singleInclude({
-            includeDefaultTier,
-            includePrivate: canManage,
-          }) as any,
-        });
+          select: { id: true },
+        })) !== null;
 
-        if (!profile) {
-          return res.status(404).json({ error: "Artist not found" });
-        }
+      const profile = await prisma.profile.findFirst({
+        where: {
+          id: artistId,
+          enabled: true,
+        },
+        include: singleInclude({
+          includeDefaultTier,
+          includePrivate: canManage,
+        }) as any,
+      });
 
-        isUserSubscriber = await checkIsUserSubscriber(loggedInUser, parsedId);
-
-        return res.json({
-          result: serializeProfile(
-            profile as any,
-            loggedInUser?.id,
-            isUserSubscriber
-          ),
-        });
-      } else {
+      if (!profile) {
         return res.status(404).json({ error: "Artist not found" });
       }
+
+      const isUserSubscriber = await checkIsUserSubscriber(
+        loggedInUser,
+        artistId
+      );
+
+      return res.json({
+        result: serializeProfile(
+          profile as any,
+          loggedInUser?.id,
+          isUserSubscriber
+        ),
+      });
     } catch (e) {
       next(e);
     }
@@ -77,7 +70,7 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
         type: "string",
         description: "Artist ID or urlSlug",

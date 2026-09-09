@@ -10,7 +10,6 @@ import { Request, Response } from "express";
 import { userLoggedInWithoutRedirect } from "../../../../auth/passport";
 import { serializePost } from "../../../../serializers/post";
 import { processSingleTrackGroup } from "../../../../serializers/trackGroup";
-import { findProfileIdForURLSlug } from "../../../../utils/artist";
 import {
   canUserSeePostContent,
   getUserSubscriptionForProfile,
@@ -125,19 +124,15 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response) {
-    let { id }: { id?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     const { format, take, skip } = req.query;
     const user = req.user;
 
     try {
-      const parsedId = await findProfileIdForURLSlug(id);
-      let profile;
-      if (parsedId) {
-        profile = await prisma.profile.findFirst({
-          where: { id: Number(parsedId) },
-          include: { subscriptionTiers: true },
-        });
-      }
+      const profile = await prisma.profile.findFirst({
+        where: { id: artistId },
+        include: { subscriptionTiers: true },
+      });
 
       if (!profile) {
         return res.status(404).json({ error: "Artist not found" });
@@ -169,7 +164,7 @@ export default function () {
         res.json({ results: zipped, total });
       }
     } catch (e) {
-      console.error(`/v1/artists/{id}/feed ${e}`);
+      console.error(`/v1/artists/{artistId}/feed ${e}`);
       res.status(400);
     }
   }

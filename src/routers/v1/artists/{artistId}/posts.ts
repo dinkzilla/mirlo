@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from "express";
 
 import prisma from "@mirlo/prisma";
 import { userLoggedInWithoutRedirect } from "../../../../auth/passport";
-import { findProfileIdForURLSlug } from "../../../../utils/artist";
 
 import { AppError } from "../../../../utils/error";
 import { getPostsVisibleToUser } from "./feed";
@@ -13,7 +12,7 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    let { id }: { id?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     const { skip, take = 10 } = req.query as unknown as {
       skip: string;
       take: string;
@@ -21,18 +20,14 @@ export default function () {
     const user = req.user;
 
     try {
-      const parsedId = await findProfileIdForURLSlug(id);
-      let profile;
-      if (parsedId) {
-        profile = await prisma.profile.findFirst({
-          where: {
-            id: Number(parsedId),
-          },
-          include: {
-            subscriptionTiers: true,
-          },
-        });
-      }
+      const profile = await prisma.profile.findFirst({
+        where: {
+          id: artistId,
+        },
+        include: {
+          subscriptionTiers: true,
+        },
+      });
 
       if (!profile) {
         return res.status(404).json({

@@ -15,7 +15,7 @@ import {
 } from "../../utils";
 import { requestApp } from "../utils";
 
-describe("artists/{id}/feed", () => {
+describe("artists/{artistId}/feed", () => {
   beforeEach(async () => {
     try {
       await clearTables();

@@ -31,7 +31,7 @@ import {
 } from "../activityPub/utils";
 import { redisClient } from "../config/redis";
 import logger from "../logger";
-import { buildFeedForArtist } from "../routers/v1/artists/{id}/feed";
+import { buildFeedForArtist } from "../routers/v1/artists/{artistId}/feed";
 import { findArtistIdForURLSlug } from "../utils/artist";
 import { getClient } from "../utils/getClient";
 import { generateFullStaticImageUrl } from "../utils/images";

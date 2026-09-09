@@ -34,7 +34,7 @@ async function createInstanceArtist() {
   return { artist };
 }
 
-describe("artists/{id}/follow newsletter", () => {
+describe("artists/{artistId}/follow newsletter", () => {
   beforeEach(async () => {
     await clearTables();
   });

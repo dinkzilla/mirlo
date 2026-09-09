@@ -1,29 +1,23 @@
 import prisma from "@mirlo/prisma";
 import { Request, Response } from "express";
 
-import { findProfileIdForURLSlug } from "../../../../utils/artist";
-
 export default function () {
   const operations = {
     GET: [GET],
   };
 
   async function GET(req: Request, res: Response) {
-    let { id }: { id?: string } = req.params;
+    const artistId = res.locals.artistId as number;
 
     try {
-      const parsedId = await findProfileIdForURLSlug(id);
-      let profile;
-      if (parsedId) {
-        profile = await prisma.profile.findFirst({
-          where: {
-            id: Number(parsedId),
-          },
-          include: {
-            subscriptionTiers: true,
-          },
-        });
-      }
+      const profile = await prisma.profile.findFirst({
+        where: {
+          id: artistId,
+        },
+        include: {
+          subscriptionTiers: true,
+        },
+      });
 
       if (!profile) {
         return res.status(404).json({
@@ -34,7 +28,7 @@ export default function () {
       const followers = await prisma.profileUserSubscription.findMany({
         where: {
           profileSubscriptionTier: {
-            profileId: Number(parsedId),
+            profileId: artistId,
           },
         },
       });
@@ -42,7 +36,7 @@ export default function () {
         result: followers.length,
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/followers ${e}`);
+      console.error(`/v1/artists/{artistId}/followers ${e}`);
       res.status(400);
     }
   }

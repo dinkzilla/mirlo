@@ -8,7 +8,7 @@ import { clearTables, createProfile, createUser } from "../../utils";
 
 import { requestApp } from "../utils";
 
-describe("artists/{id]/follow", () => {
+describe("artists/{artistId}/follow", () => {
   beforeEach(async () => {
     try {
       await clearTables();

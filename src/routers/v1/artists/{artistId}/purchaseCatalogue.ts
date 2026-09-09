@@ -9,10 +9,6 @@ import { resolvePayee } from "../../../../utils/payments/payee";
 import { determinePrice } from "../../../../utils/purchasing";
 import { createStripeCheckoutSessionForCatalogue } from "../../../../utils/stripe/sessions";
 
-type Params = {
-  id: string;
-};
-
 export default function () {
   const operations = {
     GET: [GET],
@@ -20,11 +16,11 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     try {
       const profile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
         },
       });
 
@@ -53,9 +49,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {
@@ -73,7 +70,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     let { price, email, message } = req.body as unknown as {
       price?: string; // In cents
       email?: string;
@@ -94,7 +91,7 @@ export default function () {
 
       const profile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
         },
         include: {
           user: true,
@@ -163,9 +160,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "body",
