@@ -9,8 +9,6 @@ import { AppError } from "../../../../utils/error";
 import { getClient } from "../../../../utils/getClient";
 import { serializeProfile } from "../../../../serializers/artist";
 
-type Params = { id: string };
-
 const CONTACT_RATE_LIMIT = 2;
 const CONTACT_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 5000;
@@ -21,7 +19,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     const { message } = req.body as { message?: string };
     const sender = req.user as User;
 
@@ -42,7 +40,7 @@ export default function () {
 
       const profile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
           enabled: true,
           deletedAt: null,
         },
@@ -124,7 +122,13 @@ export default function () {
   POST.apiDoc = {
     summary: "Send a message to an artist",
     parameters: [
-      { in: "path", name: "id", required: true, type: "number" },
+      {
+        in: "path",
+        name: "artistId",
+        required: true,
+        type: "string",
+        description: "Artist ID or urlSlug",
+      },
       {
         in: "body",
         name: "contact",

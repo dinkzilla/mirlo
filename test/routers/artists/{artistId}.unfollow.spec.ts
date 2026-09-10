@@ -8,7 +8,7 @@ import prisma from "@mirlo/prisma";
 import { clearTables, createProfile, createUser } from "../../utils";
 import { requestApp } from "../utils";
 
-describe("artists/{id]/unfollow", () => {
+describe("artists/{artistId}/unfollow", () => {
   beforeEach(async () => {
     try {
       await clearTables();

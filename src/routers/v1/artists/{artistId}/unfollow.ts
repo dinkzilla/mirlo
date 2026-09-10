@@ -4,17 +4,13 @@ import { NextFunction, Request, Response } from "express";
 import { userLoggedInWithoutRedirect } from "../../../../auth/passport";
 import { AppError } from "../../../../utils/error";
 
-type Params = {
-  id: string;
-};
-
 export default function () {
   const operations = {
     POST: [userLoggedInWithoutRedirect, POST],
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     const user = req.user;
     const { email } = req.body ?? {};
 
@@ -35,7 +31,7 @@ export default function () {
       if (userIdToRemove) {
         const profile = await prisma.profile.findFirst({
           where: {
-            id: Number(profileId),
+            id: profileId,
           },
           include: {
             subscriptionTiers: true,
@@ -92,9 +88,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {

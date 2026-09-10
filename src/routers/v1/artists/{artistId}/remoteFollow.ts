@@ -6,10 +6,6 @@ import { AppError } from "../../../../utils/error";
 
 const SUBSCRIBE_REL = "http://ostatus.org/schema/1.0/subscribe";
 
-type Params = {
-  id: string;
-};
-
 export default function () {
   const operations = {
     GET: [GET],
@@ -24,7 +20,7 @@ export default function () {
    * the returned URL, landing the user on their own server's follow screen.
    */
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     const { handle } = req.query;
 
     try {
@@ -51,7 +47,7 @@ export default function () {
       const server = cleaned.slice(atIndex + 1);
 
       const profile = await prisma.profile.findFirst({
-        where: { id: Number(profileId), enabled: true },
+        where: { id: profileId, enabled: true },
       });
 
       if (!profile) {
@@ -111,9 +107,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
         type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "query",

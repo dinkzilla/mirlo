@@ -8,17 +8,13 @@ import {
 import { getClient } from "../../../../utils/getClient";
 import { getSiteSettings } from "../../../../utils/settings";
 
-type Params = {
-  id: string;
-};
-
 export default function () {
   const operations = {
     GET: [confirmProfileIdExists, GET],
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
 
     const { email, token } = req.query as unknown as {
       email?: string;
@@ -29,7 +25,7 @@ export default function () {
       const { applicationUrl } = await getClient();
       const profile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
         },
         include: {
           user: true,
@@ -40,7 +36,7 @@ export default function () {
       const confirmation =
         await prisma.profileUserSubscriptionConfirmation.findFirst({
           where: {
-            profileId: Number(profileId),
+            profileId: profileId,
             email,
             token,
             tokenExpiration: { gte: new Date() },
@@ -110,9 +106,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {

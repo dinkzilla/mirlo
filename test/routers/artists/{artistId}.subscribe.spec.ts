@@ -43,7 +43,7 @@ let createTestData = async (stripeAccountId: string | null = "23") => {
   };
 };
 
-describe("artists/{id}/subscribe", () => {
+describe("artists/{artistId}/subscribe", () => {
   beforeEach(async () => {
     try {
       await clearTables();

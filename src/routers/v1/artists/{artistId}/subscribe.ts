@@ -13,10 +13,6 @@ import { resolvePayee } from "../../../../utils/payments/payee";
 import { cancelUserSubscription } from "../../../../utils/payments/subscription";
 import { createCheckoutSessionForSubscription } from "../../../../utils/stripe/sessions";
 
-type Params = {
-  id: string;
-};
-
 const findTierById = async (tierId: number) => {
   return prisma.profileSubscriptionTier.findFirst({
     where: {
@@ -40,7 +36,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     let { tierId, email, amount, embedded, name } = req.body;
 
     const loggedInUser = req.user;
@@ -63,7 +59,7 @@ export default function () {
                   userId: userId,
                 },
               },
-              profileId: Number(profileId),
+              profileId: profileId,
             },
           },
           include: {
@@ -80,7 +76,7 @@ export default function () {
             `Deleting old subscriptions for ${profileId}, old tier: ${oldTier.id}`
           );
           await deleteStripeSubscriptions({
-            profileSubscriptionTier: { profileId: Number(profileId) },
+            profileSubscriptionTier: { profileId: profileId },
             userId,
           });
           await prisma.profileUserSubscription.updateMany({
@@ -92,7 +88,7 @@ export default function () {
           });
           await prisma.profileUserSubscription.deleteMany({
             where: {
-              profileSubscriptionTier: { profileId: Number(profileId) },
+              profileSubscriptionTier: { profileId: profileId },
               userId,
             },
           });
@@ -152,9 +148,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "body",
@@ -184,7 +181,7 @@ export default function () {
   };
 
   async function DELETE(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     assertLoggedIn(req);
     const loggedInUser = req.user;
     const keepFollowing = Boolean(req.body?.keepFollowing);
@@ -193,7 +190,7 @@ export default function () {
     try {
       const subscription = await prisma.profileUserSubscription.findFirst({
         where: {
-          profileSubscriptionTier: { profileId: Number(profileId) },
+          profileSubscriptionTier: { profileId: profileId },
           userId: loggedInUser.id,
           deletedAt: null,
           ...(tierId ? { profileSubscriptionTierId: tierId } : {}),
@@ -227,9 +224,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "body",

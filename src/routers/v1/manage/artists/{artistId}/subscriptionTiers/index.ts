@@ -10,11 +10,6 @@ import {
 import { getPlatformFeeForArtist } from "../../../../../../utils/artist";
 import { serializeProfileSubscriptionTier } from "../../../../../../serializers/profileSubscriptionTier";
 
-type Params = {
-  artistId: string;
-  userId: string;
-};
-
 export default function () {
   const operations = {
     GET: [
@@ -32,13 +27,13 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params as unknown as Params;
+    const artistId = res.locals.artistId as number;
     const { includeDefault } = req.query as { includeDefault?: boolean };
 
     try {
       const subscriptions = await prisma.profileSubscriptionTier.findMany({
         where: {
-          profileId: Number(artistId),
+          profileId: artistId,
           ...(includeDefault ? {} : { isDefaultTier: false }),
         },
         orderBy: {
@@ -70,7 +65,7 @@ export default function () {
   }
 
   async function POST(req: Request, res: Response) {
-    const { artistId } = req.params as unknown as Params;
+    const artistId = res.locals.artistId as number;
     assertLoggedIn(req);
     const user = req.user;
 
@@ -92,7 +87,7 @@ export default function () {
       const subscription = await prisma.profileSubscriptionTier.create({
         data: {
           name,
-          profileId: Number(artistId),
+          profileId: artistId,
           description,
           minAmount,
           collectAddress,

@@ -8,7 +8,7 @@ import { describe, it } from "mocha";
 import sinon from "sinon";
 
 import { root } from "../../../src/activityPub/utils";
-import remoteFollow from "../../../src/routers/v1/artists/{id}/remoteFollow";
+import remoteFollow from "../../../src/routers/v1/artists/{artistId}/remoteFollow";
 import { clearTables, createProfile, createUser } from "../../utils";
 
 const getHandler = () => remoteFollow().GET[0];
@@ -16,7 +16,7 @@ const getHandler = () => remoteFollow().GET[0];
 const SUBSCRIBE_REL = "http://ostatus.org/schema/1.0/subscribe";
 const TEMPLATE = "https://mastodon.social/authorize_interaction?uri={uri}";
 
-describe("artists/{id}/remoteFollow", () => {
+describe("artists/{artistId}/remoteFollow", () => {
   let statusStub: sinon.SinonStub;
   let jsonStub: sinon.SinonStub;
   let mockRes: Response;
@@ -32,7 +32,11 @@ describe("artists/{id}/remoteFollow", () => {
 
     statusStub = sinon.stub().returnsThis();
     jsonStub = sinon.stub();
-    mockRes = { status: statusStub, json: jsonStub } as unknown as Response;
+    mockRes = {
+      status: statusStub,
+      json: jsonStub,
+      locals: {},
+    } as unknown as Response;
     mockNext = sinon.stub();
     // Reject network by default; happy-path tests opt in with their own stub.
     fetchStub = sinon
@@ -44,12 +48,14 @@ describe("artists/{id}/remoteFollow", () => {
     sinon.restore();
   });
 
-  const callHandler = (params: object, query: object) =>
-    getHandler()(
-      { params, query } as unknown as Request,
+  const callHandler = (artistId: number, query: object) => {
+    mockRes.locals.artistId = artistId;
+    return getHandler()(
+      { query } as unknown as Request,
       mockRes,
       mockNext as unknown as Parameters<ReturnType<typeof getHandler>>[2]
     );
+  };
 
   const createApProfile = async () => {
     const { user } = await createUser({ email: "artist@artist.com" });
@@ -61,7 +67,7 @@ describe("artists/{id}/remoteFollow", () => {
   it("should error when handle is missing", async () => {
     const profile = await createApProfile();
 
-    await callHandler({ id: `${profile.id}` }, {});
+    await callHandler(profile.id, {});
 
     const error = mockNext.getCall(0).args[0];
     assert.equal(error.httpCode, 400);
@@ -71,7 +77,7 @@ describe("artists/{id}/remoteFollow", () => {
   it("should error when handle is not in user@server format", async () => {
     const profile = await createApProfile();
 
-    await callHandler({ id: `${profile.id}` }, { handle: "notahandle" });
+    await callHandler(profile.id, { handle: "notahandle" });
 
     const error = mockNext.getCall(0).args[0];
     assert.equal(error.httpCode, 400);
@@ -79,7 +85,7 @@ describe("artists/{id}/remoteFollow", () => {
   });
 
   it("should 404 when the artist doesn't exist", async () => {
-    await callHandler({ id: "999999" }, { handle: "@me@mastodon.social" });
+    await callHandler(999999, { handle: "@me@mastodon.social" });
 
     const error = mockNext.getCall(0).args[0];
     assert.equal(error.httpCode, 404);
@@ -93,10 +99,7 @@ describe("artists/{id}/remoteFollow", () => {
       urlSlug: "no-ap",
     });
 
-    await callHandler(
-      { id: `${profile.id}` },
-      { handle: "@me@mastodon.social" }
-    );
+    await callHandler(profile.id, { handle: "@me@mastodon.social" });
 
     const error = mockNext.getCall(0).args[0];
     assert.equal(error.httpCode, 400);
@@ -110,10 +113,7 @@ describe("artists/{id}/remoteFollow", () => {
       json: async () => ({ links: [{ rel: "self", href: "https://x" }] }),
     } as unknown as Response);
 
-    await callHandler(
-      { id: `${profile.id}` },
-      { handle: "@me@mastodon.social" }
-    );
+    await callHandler(profile.id, { handle: "@me@mastodon.social" });
 
     const error = mockNext.getCall(0).args[0];
     assert.equal(error.httpCode, 400);
@@ -123,10 +123,7 @@ describe("artists/{id}/remoteFollow", () => {
     const profile = await createApProfile();
     fetchStub.resolves({ ok: false } as unknown as Response);
 
-    await callHandler(
-      { id: `${profile.id}` },
-      { handle: "@me@mastodon.social" }
-    );
+    await callHandler(profile.id, { handle: "@me@mastodon.social" });
 
     const error = mockNext.getCall(0).args[0];
     assert.equal(error.httpCode, 404);
@@ -141,10 +138,7 @@ describe("artists/{id}/remoteFollow", () => {
       }),
     } as unknown as Response);
 
-    await callHandler(
-      { id: `${profile.id}` },
-      { handle: "@me@mastodon.social" }
-    );
+    await callHandler(profile.id, { handle: "@me@mastodon.social" });
 
     assert.equal(mockNext.called, false);
 

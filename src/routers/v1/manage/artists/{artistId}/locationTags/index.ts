@@ -14,8 +14,7 @@ export default function () {
 
   async function GET(req: Request, res: Response, next: NextFunction) {
     try {
-      const { artistId: profileIdParam } = req.params;
-      const profileId = parseInt(profileIdParam, 10);
+      const profileId = res.locals.artistId as number;
 
       const locationTags = await prisma.profileLocationTag.findMany({
         where: { profileId: profileId },
@@ -37,8 +36,8 @@ export default function () {
         in: "path",
         name: "artistId",
         required: true,
-        type: "integer",
-        description: "Artist ID",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {
@@ -56,9 +55,8 @@ export default function () {
 
   async function POST(req: Request, res: Response, next: NextFunction) {
     try {
-      const { artistId: profileIdParam } = req.params;
+      const profileId = res.locals.artistId as number;
       const { locationTagId } = req.body;
-      const profileId = parseInt(profileIdParam, 10);
 
       if (!locationTagId) {
         throw new AppError({
@@ -102,8 +100,8 @@ export default function () {
         in: "path",
         name: "artistId",
         required: true,
-        type: "integer",
-        description: "Artist ID",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "body",

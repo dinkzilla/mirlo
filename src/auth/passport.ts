@@ -232,9 +232,7 @@ export const profileBelongsToLoggedInUser = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { artistId: profileId } = req.params as unknown as {
-    artistId: string;
-  };
+  const profileId = res.locals.artistId as number;
 
   const profileEditableByUserResult = await profileEditableByUser(
     profileId,

@@ -12,8 +12,8 @@ export default function () {
 
   async function DELETE(req: Request, res: Response, next: NextFunction) {
     try {
-      const { artistId: profileIdParam, locationTagId } = req.params;
-      const profileId = parseInt(profileIdParam, 10);
+      const { locationTagId } = req.params;
+      const profileId = res.locals.artistId as number;
       const locTagId = parseInt(locationTagId, 10);
 
       await prisma.profileLocationTag.deleteMany({
@@ -34,8 +34,8 @@ export default function () {
         in: "path",
         name: "artistId",
         required: true,
-        type: "integer",
-        description: "Artist ID",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "path",

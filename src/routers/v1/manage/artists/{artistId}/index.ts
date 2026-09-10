@@ -8,17 +8,9 @@ import {
   userAuthenticated,
 } from "../../../../../auth/passport";
 import { serializeProfile } from "../../../../../serializers/artist";
-import {
-  deleteProfile,
-  findProfileIdForURLSlug,
-  singleInclude,
-} from "../../../../../utils/artist";
+import { deleteProfile, singleInclude } from "../../../../../utils/artist";
 import { AppError } from "../../../../../utils/error";
 import generateSlug from "../../../../../utils/generateSlug";
-
-type Params = {
-  artistId: string;
-};
 
 export default function () {
   const operations = {
@@ -28,7 +20,7 @@ export default function () {
   };
 
   async function PUT(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     const {
       bio,
       name,
@@ -70,7 +62,7 @@ export default function () {
     try {
       const existingProfile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
         },
       });
       // FIXME: check type of properties object.
@@ -93,7 +85,7 @@ export default function () {
         if (displayLabelUserId !== undefined) {
           await tx.artistLabel.updateMany({
             where: {
-              artistId: Number(profileId),
+              artistId: profileId,
               isDisplayedOnArtistPage: true,
             },
             data: { isDisplayedOnArtistPage: false },
@@ -101,7 +93,7 @@ export default function () {
           if (displayLabelUserId !== null) {
             const approvedLabel = await tx.artistLabel.findFirst({
               where: {
-                artistId: Number(profileId),
+                artistId: profileId,
                 labelUserId: Number(displayLabelUserId),
                 isArtistApproved: true,
                 isLabelApproved: true,
@@ -117,7 +109,7 @@ export default function () {
             await tx.artistLabel.update({
               where: {
                 labelUserId_artistId: {
-                  artistId: Number(profileId),
+                  artistId: profileId,
                   labelUserId: Number(displayLabelUserId),
                 },
               },
@@ -128,7 +120,7 @@ export default function () {
 
         const result = await tx.profile.updateMany({
           where: {
-            id: Number(profileId),
+            id: profileId,
           },
           data: {
             bio,
@@ -159,12 +151,12 @@ export default function () {
         if (tourDates) {
           await tx.artistTourDate.deleteMany({
             where: {
-              artistId: Number(profileId),
+              artistId: profileId,
             },
           });
           await tx.artistTourDate.createMany({
             data: tourDates.map((tourDate: any) => ({
-              artistId: Number(profileId),
+              artistId: profileId,
               location: tourDate.location,
               date: new Date(tourDate.date),
               ticketsUrl: tourDate.ticketsUrl,
@@ -177,7 +169,7 @@ export default function () {
 
       if (updatedCount) {
         const artist = await prisma.profile.findFirst({
-          where: { id: Number(profileId) },
+          where: { id: profileId },
         });
         res.json({
           result: artist ? serializeProfile(artist, Number(user.id)) : artist,
@@ -226,15 +218,13 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     assertLoggedIn(req);
     const user = req.user;
-
-    const castProfileId = await findProfileIdForURLSlug(profileId);
     try {
       const artist = await prisma.profile.findFirst({
         where: {
-          id: Number(castProfileId),
+          id: profileId,
         },
         include: {
           ...singleInclude({ includePrivate: true }),
@@ -288,12 +278,12 @@ export default function () {
   };
 
   async function DELETE(req: Request, res: Response, next: NextFunction) {
-    const { artistId: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     assertLoggedIn(req);
     const user = req.user;
 
     try {
-      await deleteProfile(Number(user.id), Number(profileId));
+      await deleteProfile(Number(user.id), profileId);
     } catch (e) {
       return next(e);
     }

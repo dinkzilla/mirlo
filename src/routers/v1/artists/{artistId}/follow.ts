@@ -13,17 +13,13 @@ import { getSiteSettings } from "../../../../utils/settings";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type Params = {
-  id: string;
-};
-
 export default function () {
   const operations = {
     POST: [confirmProfileIdExists, userLoggedInWithoutRedirect, POST],
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const { id: profileId } = req.params as unknown as Params;
+    const profileId = res.locals.artistId as number;
     const loggedInuser = req.user;
 
     const { email, message, cfTurnstile } = req.body ?? {};
@@ -49,7 +45,7 @@ export default function () {
 
       const profile = await prisma.profile.findFirst({
         where: {
-          id: Number(profileId),
+          id: profileId,
         },
         include: {
           user: true,
@@ -167,9 +163,10 @@ export default function () {
     parameters: [
       {
         in: "path",
-        name: "id",
+        name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {

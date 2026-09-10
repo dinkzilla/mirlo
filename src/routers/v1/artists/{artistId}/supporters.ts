@@ -2,7 +2,6 @@ import prisma from "@mirlo/prisma";
 import { Prisma } from "@mirlo/prisma/client";
 import { Request, Response } from "express";
 
-import { findProfileIdForURLSlug } from "../../../../utils/artist";
 import { serializeUserTransaction } from "../../../../serializers/userTransaction";
 
 const constructDateFilter = (
@@ -331,7 +330,7 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response) {
-    let { id }: { id?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     let {
       take = 20,
       skip = 0,
@@ -346,18 +345,14 @@ export default function () {
     };
 
     try {
-      const parsedId = await findProfileIdForURLSlug(id);
-      let profile;
-      if (parsedId) {
-        profile = await prisma.profile.findFirst({
-          where: {
-            id: Number(parsedId),
-          },
-          include: {
-            subscriptionTiers: true,
-          },
-        });
-      }
+      const profile = await prisma.profile.findFirst({
+        where: {
+          id: artistId,
+        },
+        include: {
+          subscriptionTiers: true,
+        },
+      });
 
       if (!profile) {
         return res.status(404).json({
@@ -371,7 +366,7 @@ export default function () {
       }
 
       const results = await findSales({
-        profileId: [Number(parsedId)],
+        profileId: [artistId],
         sinceDate: sinceDate as string,
         filters: trackGroupIds
           ? {
@@ -417,7 +412,7 @@ export default function () {
         totalSupporters,
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/followers ${e}`);
+      console.error(`/v1/artists/{artistId}/supporters ${e}`);
       res.status(400);
     }
   }

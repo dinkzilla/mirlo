@@ -25,7 +25,7 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params;
+    const artistId = res.locals.artistId as number;
     const { includeLabelReleases } = req.query;
     assertLoggedIn(req);
     const loggedInUser = req.user;
@@ -46,7 +46,7 @@ export default function () {
                   { paymentToUserId: loggedInUser.id },
                 ],
               }
-            : { profileId: Number(artistId) }),
+            : { profileId: artistId }),
         },
         orderBy: {
           releaseDate: "desc",
@@ -85,9 +85,11 @@ export default function () {
     summary: "Get all trackgroups belonging to a user",
     parameters: [
       {
-        in: "query",
+        in: "path",
         name: "artistId",
-        type: "number",
+        required: true,
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {
@@ -121,7 +123,7 @@ export default function () {
       suggestedPrice,
       urlSlug,
     } = req.body;
-    const artistId = Number(req.params.artistId);
+    const artistId = res.locals.artistId as number;
     assertLoggedIn(req);
     const user = req.user;
 
@@ -134,7 +136,7 @@ export default function () {
     try {
       const existingSlug = await prisma.trackGroup.findFirst({
         where: {
-          profileId: Number(artistId),
+          profileId: artistId,
           urlSlug,
         },
       });
@@ -147,7 +149,7 @@ export default function () {
 
       const artist = await prisma.profile.findFirst({
         where: {
-          id: Number(artistId),
+          id: artistId,
         },
         include: {
           artistLabels: true,
@@ -206,7 +208,8 @@ export default function () {
         in: "path",
         name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "body",

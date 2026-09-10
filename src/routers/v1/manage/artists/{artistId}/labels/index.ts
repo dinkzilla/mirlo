@@ -99,12 +99,12 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response) {
-    const { artistId } = req.params as { artistId: string };
+    const artistId = res.locals.artistId as number;
 
     try {
       const artistLabels = await prisma.artistLabel.findMany({
         where: {
-          artistId: Number(artistId),
+          artistId: artistId,
         },
         include: {
           labelUser: {
@@ -129,7 +129,7 @@ export default function () {
         })),
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/labels ${e}`);
+      console.error(`/v1/manage/artists/{artistId}/labels ${e}`);
       res.status(400);
     }
   }
@@ -156,7 +156,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    let { artistId }: { artistId?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     const { labelUserId, isLabelApproved } = req.body as {
       labelUserId?: number;
       isLabelApproved?: boolean;
@@ -172,7 +172,7 @@ export default function () {
 
       const artist = await prisma.profile.findFirst({
         where: {
-          id: Number(artistId),
+          id: artistId,
           deletedAt: null,
         },
       });
@@ -199,7 +199,7 @@ export default function () {
 
       const data: Prisma.ArtistLabelCreateArgs["data"] = {
         labelUserId,
-        artistId: Number(artistId),
+        artistId: artistId,
       };
 
       const isLabelAddingArtist = loggedInUser.id === labelUserId;
@@ -225,7 +225,7 @@ export default function () {
         where: {
           labelUserId_artistId: {
             labelUserId,
-            artistId: Number(artistId),
+            artistId: artistId,
           },
         },
       });
@@ -236,7 +236,7 @@ export default function () {
         where: {
           labelUserId_artistId: {
             labelUserId,
-            artistId: Number(artistId),
+            artistId: artistId,
           },
         },
         create: data,
@@ -245,7 +245,7 @@ export default function () {
 
       const labels = await prisma.artistLabel.findMany({
         where: {
-          artistId: Number(artistId),
+          artistId: artistId,
         },
       });
 
@@ -285,7 +285,7 @@ export default function () {
   };
 
   async function DELETE(req: Request, res: Response, next: NextFunction) {
-    let { artistId }: { artistId?: string } = req.params;
+    const artistId = res.locals.artistId as number;
     const { labelUserId } = req.body as { labelUserId?: number };
 
     try {
@@ -296,13 +296,13 @@ export default function () {
       await prisma.artistLabel.deleteMany({
         where: {
           labelUserId,
-          artistId: Number(artistId),
+          artistId: artistId,
         },
       });
 
       const labels = await prisma.artistLabel.findMany({
         where: {
-          artistId: Number(artistId),
+          artistId: artistId,
         },
       });
       res.json({

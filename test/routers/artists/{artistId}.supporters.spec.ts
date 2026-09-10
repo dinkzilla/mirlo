@@ -12,7 +12,7 @@ import {
 
 import { requestApp } from "../utils";
 
-describe("artists/{id}/supporters", () => {
+describe("artists/{artistId}/supporters", () => {
   beforeEach(async () => {
     try {
       await clearTables();

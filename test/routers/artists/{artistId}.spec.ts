@@ -22,8 +22,8 @@ describe("artists", () => {
     }
   });
 
-  describe("/{id}", () => {
-    it("should GET /{id} with artist slug", async () => {
+  describe("/{artistId}", () => {
+    it("should GET /{artistId} with artist slug", async () => {
       const profileSlug = "test-artist";
       const user = await prisma.user.create({
         data: {
@@ -40,7 +40,7 @@ describe("artists", () => {
       assert.equal(response.body.result.id, profile.id);
     });
 
-    it("should GET /{id} with wrong artist slug", async () => {
+    it("should GET /{artistId} with wrong artist slug", async () => {
       const profileSlug = "test-artist";
       const user = await prisma.user.create({
         data: {

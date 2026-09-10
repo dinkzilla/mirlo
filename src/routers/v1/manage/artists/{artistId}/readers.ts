@@ -12,10 +12,10 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params;
+    const artistId = res.locals.artistId as number;
 
     try {
-      const results = await listArtistReaders(Number(artistId));
+      const results = await listArtistReaders(artistId);
       res.status(200).json({ results });
     } catch (e) {
       next(e);

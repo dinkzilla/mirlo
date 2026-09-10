@@ -10,10 +10,6 @@ import { downloadCSVFile } from "../../../../../utils/download";
 import { getClient } from "../../../../../utils/getClient";
 import { processSingleTrackGroup } from "../../../../../serializers/trackGroup";
 
-type Params = {
-  artistId: string;
-};
-
 const csvColumns = [
   {
     label: "Album ID",
@@ -51,14 +47,14 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params as unknown as Params;
+    const artistId = res.locals.artistId as number;
     const { group } = req.query as unknown as { group: string };
 
     try {
       const { applicationUrl } = await getClient();
       const where: Prisma.TrackGroupDownloadCodesWhereInput = {
         trackGroup: {
-          profileId: Number(artistId),
+          profileId: artistId,
           deletedAt: null,
         },
       };

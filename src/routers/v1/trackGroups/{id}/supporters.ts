@@ -1,7 +1,7 @@
 import prisma from "@mirlo/prisma";
 import { Request, Response } from "express";
 
-import { findSales } from "../../artists/{id}/supporters";
+import { findSales } from "../../artists/{artistId}/supporters";
 import { serializeUserTransaction } from "../../../../serializers/userTransaction";
 
 export default function () {
@@ -115,7 +115,7 @@ export default function () {
         totalPledges: pledges.length,
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/followers ${e}`);
+      console.error(`/v1/trackGroups/{id}/supporters ${e}`);
       res.status(400);
     }
   }

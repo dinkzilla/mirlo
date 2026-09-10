@@ -5,7 +5,7 @@ import { userAuthenticated } from "../../../auth/passport";
 import { resolveManagedArtistIds } from "../../../utils/artist";
 import { getDateRange } from "../../../utils/dateRange";
 import { downloadCSVFile } from "../../../utils/download";
-import { findSales } from "../artists/{id}/supporters";
+import { findSales } from "../artists/{artistId}/supporters";
 import { serializeUserTransaction } from "../../../serializers/userTransaction";
 
 export default function () {
@@ -136,7 +136,7 @@ export default function () {
         totalSupporters,
       });
     } catch (e) {
-      console.error(`/v1/artists/{id}/followers ${e}`);
+      console.error(`/v1/manage/sales ${e}`);
       res.status(400);
     }
   }

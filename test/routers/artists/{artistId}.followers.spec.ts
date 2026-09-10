@@ -8,7 +8,7 @@ import { describe, it } from "mocha";
 import { clearTables, createProfile } from "../../utils";
 import { requestApp } from "../utils";
 
-describe("artists/{id}/followers", () => {
+describe("artists/{artistId}/followers", () => {
   beforeEach(async () => {
     try {
       await clearTables();

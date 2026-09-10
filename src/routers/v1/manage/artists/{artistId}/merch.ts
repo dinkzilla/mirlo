@@ -23,11 +23,11 @@ export default function () {
   };
 
   async function GET(req: Request, res: Response, next: NextFunction) {
-    const { artistId } = req.params;
+    const artistId = res.locals.artistId as number;
     try {
       const results = await prisma.merch.findMany({
         where: {
-          profileId: Number(artistId),
+          profileId: artistId,
           deletedAt: null,
         },
         orderBy: [
@@ -53,9 +53,11 @@ export default function () {
     summary: "Get all merch belonging to a user",
     parameters: [
       {
-        in: "query",
+        in: "path",
         name: "artistId",
-        type: "number",
+        required: true,
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
     ],
     responses: {
@@ -78,7 +80,7 @@ export default function () {
   };
 
   async function POST(req: Request, res: Response, next: NextFunction) {
-    const artistId = Number(req.params.artistId);
+    const artistId = res.locals.artistId as number;
     const { title, description } = req.body;
     assertLoggedIn(req);
     const user = req.user;
@@ -124,7 +126,8 @@ export default function () {
         in: "path",
         name: "artistId",
         required: true,
-        type: "number",
+        type: "string",
+        description: "Artist ID or urlSlug",
       },
       {
         in: "body",
