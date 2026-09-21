@@ -190,9 +190,8 @@ const addTrackMetadataTags = (
   addMetadataTag(processor, "MusicBrainz Disc Id", common.musicbrainz_discid);
 };
 
-const addTrackArtistRoleTags = (
-  processor: ffmpeg.FfmpegCommand,
-  trackArtists: TrackArtist[],
+export const resolveTrackArtistName = (
+  trackArtists: Pick<TrackArtist, "artistName" | "isCoAuthor" | "order">[],
   fallbackArtistName: string
 ) => {
   const sortedArtists = [...(trackArtists ?? [])].sort(
@@ -207,13 +206,27 @@ const addTrackArtistRoleTags = (
     .map((artist) => artist.artistName)
     .filter(Boolean);
 
-  const artistField =
-    coAuthors.length > 0
-      ? coAuthors.join(", ")
-      : allArtistNames.length > 0
-        ? allArtistNames.join(", ")
-        : fallbackArtistName;
-  addMetadataTag(processor, "artist", artistField);
+  return coAuthors.length > 0
+    ? coAuthors.join(", ")
+    : allArtistNames.length > 0
+      ? allArtistNames.join(", ")
+      : fallbackArtistName;
+};
+
+const addTrackArtistRoleTags = (
+  processor: ffmpeg.FfmpegCommand,
+  trackArtists: TrackArtist[],
+  fallbackArtistName: string
+) => {
+  const sortedArtists = [...(trackArtists ?? [])].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0)
+  );
+
+  addMetadataTag(
+    processor,
+    "artist",
+    resolveTrackArtistName(trackArtists, fallbackArtistName)
+  );
 
   const roleEntries = sortedArtists
     .filter((artist) => artist.artistName)
@@ -258,7 +271,7 @@ export const convertAudioToFormat = (
     return;
   }
   const audioId = content.track.audio.id;
-  const { format, audioBitrate, audioCodec } = formatDetails;
+  const { format, audioBitrate, audioCodec, fileExtension } = formatDetails;
   logger.info(
     `audioId ${audioId}: converting ${format} going to ${goingTo} @${audioBitrate}`
   );
@@ -267,11 +280,15 @@ export const convertAudioToFormat = (
     `audioId ${audioId}: metadata: ${JSON.stringify(content.track.metadata)}`
   );
 
-  let destination = generateDestination(format, goingTo, audioBitrate);
+  let destination = generateDestination(
+    fileExtension ?? format,
+    goingTo,
+    audioBitrate
+  );
   logger.info(`audioId ${audioId}: destination: ${destination}`);
 
-  const hasCoverArtForMp3 =
-    format === "mp3" &&
+  const hasEmbeddedCoverArt =
+    (format === "mp3" || format === "ipod") &&
     !!content.trackGroup.coverLocation &&
     fileExists(content.trackGroup.coverLocation);
 
@@ -297,7 +314,7 @@ export const convertAudioToFormat = (
       onSuccess?.(null);
     });
 
-  if (!hasCoverArtForMp3) {
+  if (!hasEmbeddedCoverArt) {
     processor.noVideo();
   }
 
@@ -325,7 +342,7 @@ export const convertAudioToFormat = (
     );
   }
 
-  if (hasCoverArtForMp3 && content.trackGroup.coverLocation) {
+  if (hasEmbeddedCoverArt && content.trackGroup.coverLocation) {
     processor
       .input(content.trackGroup.coverLocation)
       .outputOptions("-map", "0:a:0")

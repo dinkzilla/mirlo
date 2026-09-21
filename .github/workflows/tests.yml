@@ -41,7 +41,7 @@ jobs:
   api-unit:
     # Successful runs take ~7-8m (build ~4m + tests ~3-4m). 10m left almost no
     # headroom and was cancelling mid-suite under transient runner slowness.
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     steps:
@@ -63,6 +63,9 @@ jobs:
         run: |
           echo "::group::Log output: blackbird-api-test"
           docker compose logs api-test
+          echo "::endgroup::"
+          echo "::group::Log output: garage-init-test (object store provisioning)"
+          docker compose logs garage-init-test
           echo "::endgroup::"
 
       - name: Stop containers

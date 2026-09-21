@@ -20,21 +20,36 @@ import {
   getCoverBuffer,
   uploadZip,
 } from "../utils/minio";
-import { convertAudioToFormat } from "../utils/tracks";
+import { convertAudioToFormat, resolveTrackArtistName } from "../utils/tracks";
 
 import { logger } from "./queue-worker";
 
 export type Format = {
-  format: "mp3" | "wav" | "flac" | "opus" | "libmp3lame";
-  audioCodec?: "flac" | "libmp3lame" | "opus" | "wav";
+  format: "mp3" | "wav" | "flac" | "opus" | "libmp3lame" | "ipod";
+  audioCodec?: "flac" | "libmp3lame" | "opus" | "wav" | "alac";
   audioBitrate?: "320" | "256" | "128";
+  fileExtension?: string;
 };
 
 const TEMP_LOCATION = process.env.TEMP_LOCATION;
 
 const parseFormat = (format: string): Format => {
   const split = format.split(".");
-  const form = split[split.length - 1] as "wav" | "mp3" | "flac" | "opus";
+  const form = split[split.length - 1] as
+    | "wav"
+    | "mp3"
+    | "flac"
+    | "opus"
+    | "alac";
+
+  if (form === "alac") {
+    return {
+      format: "ipod",
+      audioCodec: "alac",
+      fileExtension: "m4a",
+    };
+  }
+
   const codec =
     form === "mp3"
       ? "libmp3lame"
@@ -113,7 +128,15 @@ const downloadTracks = async ({
     );
 
     await new Promise((resolve, reject) => {
-      const trackFileName = `${tempFolder}/${track.order ?? i}-${filenamify(track.title ?? "")}`;
+      const trackArtistName = resolveTrackArtistName(
+        track.trackArtists ?? [],
+        artist.name
+      );
+      const namePrefix =
+        trackArtistName && trackArtistName !== artist.name
+          ? `${filenamify(trackArtistName)} - `
+          : "";
+      const trackFileName = `${tempFolder}/${track.order ?? i}-${namePrefix}${filenamify(track.title ?? "")}`;
 
       if (track.audio) {
         logger.info(

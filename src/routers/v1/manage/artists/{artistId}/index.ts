@@ -40,6 +40,7 @@ export default function () {
       announcementText,
       allowDirectMessages,
       displayLabelUserId,
+      paymentToUserId,
     } = req.body;
     assertLoggedIn(req);
     const user = req.user;
@@ -82,6 +83,24 @@ export default function () {
       }
 
       const updatedCount = await prisma.$transaction(async (tx) => {
+        if (paymentToUserId !== undefined && paymentToUserId !== null) {
+          const approvedLabel = await tx.artistLabel.findFirst({
+            where: {
+              artistId: Number(profileId),
+              labelUserId: Number(paymentToUserId),
+              isArtistApproved: true,
+              isLabelApproved: true,
+            },
+          });
+          if (!approvedLabel) {
+            throw new AppError({
+              httpCode: 400,
+              description:
+                "Payments can only be sent to a label you've both approved.",
+            });
+          }
+        }
+
         if (displayLabelUserId !== undefined) {
           await tx.artistLabel.updateMany({
             where: {
@@ -139,6 +158,12 @@ export default function () {
             maxFreePlays,
             announcementText,
             allowDirectMessages,
+            ...(paymentToUserId !== undefined
+              ? {
+                  paymentToUserId:
+                    paymentToUserId === null ? null : Number(paymentToUserId),
+                }
+              : {}),
             ...(urlSlug
               ? {
                   urlSlug: generateSlug(urlSlug),

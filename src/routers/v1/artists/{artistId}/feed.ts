@@ -11,8 +11,13 @@ import { userLoggedInWithoutRedirect } from "../../../../auth/passport";
 import { serializePost } from "../../../../serializers/post";
 import { processSingleTrackGroup } from "../../../../serializers/trackGroup";
 import {
+  findProfileIdForURLSlug,
+  resolveProfileImageUrl,
+  whereForVisibleProfile,
+} from "../../../../utils/artist";
+import {
   canUserSeePostContent,
-  getUserSubscriptionForProfile,
+  getUserSubscriptionsForProfile,
 } from "../../../../utils/postAccess";
 import { turnItemsIntoRSS } from "../../../../utils/rss";
 import { whereForPublishedTrackGroups } from "../../../../utils/trackGroup";
@@ -49,14 +54,14 @@ export const getPostsVisibleToUser = async (
   ]);
 
   const isProfileOwner = !!(user && user.id === profile.userId);
-  const subscription = await getUserSubscriptionForProfile(user, profile.id);
+  const subscriptions = await getUserSubscriptionsForProfile(user, profile.id);
 
   const processedPosts = posts.map((post) =>
     serializePost(
       post,
       undefined,
       undefined,
-      canUserSeePostContent(post, { isProfileOwner, subscription })
+      canUserSeePostContent(post, { isProfileOwner, subscriptions })
     )
   );
 
@@ -130,8 +135,21 @@ export default function () {
 
     try {
       const profile = await prisma.profile.findFirst({
-        where: { id: artistId },
-        include: { subscriptionTiers: true },
+        where: {
+          id: artistId,
+          ...(user?.isAdmin ? {} : whereForVisibleProfile()),
+        },
+        include: {
+          subscriptionTiers: true,
+          avatar: true,
+          background: true,
+          trackGroups: {
+            where: whereForPublishedTrackGroups(),
+            include: { cover: true },
+            take: 1,
+            orderBy: { orderIndex: "asc" },
+          },
+        },
       });
 
       if (!profile) {
@@ -146,6 +164,7 @@ export default function () {
             description: profile.bio,
             apiEndpoint: `artists/${profile.urlSlug}/feed`,
             clientUrl: profile.urlSlug,
+            imageUrl: resolveProfileImageUrl(profile),
           },
           zipped as unknown as Parameters<typeof turnItemsIntoRSS>[1]
         );

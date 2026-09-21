@@ -7,8 +7,8 @@ import {
   canUserCreateArtists,
   userAuthenticated,
 } from "../../../../../../auth/passport";
-import { getPlatformFeeForArtist } from "../../../../../../utils/artist";
 import { serializeProfileSubscriptionTier } from "../../../../../../serializers/profileSubscriptionTier";
+import { getPlatformFeeForArtist } from "../../../../../../utils/artist";
 
 export default function () {
   const operations = {
@@ -44,6 +44,11 @@ export default function () {
             include: { image: true },
           },
           releases: {
+            where: {
+              trackGroup: {
+                deletedAt: null,
+              },
+            },
             include: {
               trackGroup: {
                 include: {

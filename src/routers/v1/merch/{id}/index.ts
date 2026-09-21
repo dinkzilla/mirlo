@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from "express";
 
 import { userLoggedInWithoutRedirect } from "../../../../auth/passport";
 import { serializeMerch } from "../../../../serializers/merch";
+import { whereForVisibleProfile } from "../../../../utils/artist";
 import { AppError } from "../../../../utils/error";
 
 export default function () {
@@ -13,6 +14,7 @@ export default function () {
   async function GET(req: Request, res: Response, next: NextFunction) {
     let { id }: { id?: string } = req.params;
     const { artistId }: { artistId?: string } = req.query;
+    const loggedInUser = req.user;
 
     if (!id) {
       return res.status(400);
@@ -39,6 +41,9 @@ export default function () {
           isPublic: true,
           deletedAt: null,
           id: merchForURLSlug?.id || id,
+          ...(loggedInUser?.isAdmin
+            ? {}
+            : { profile: whereForVisibleProfile() }),
           shippingDestinations: {
             some: {},
           },
@@ -46,17 +51,13 @@ export default function () {
         include: {
           profile: { include: { user: { select: { currency: true } } } },
           images: true,
+          itemType: true,
           shippingDestinations: true,
           downloadableContent: {
             include: { downloadableContent: true },
           },
           includePurchaseTrackGroup: {
             include: {
-              // Without the trackGroup's own artist the client falls back to
-              // `merch.profile` when building the album link — which 404s when a
-              // label attaches a roster artist's release to label-owned merch
-              // (the URL ends up `/{labelSlug}/release/{trackGroupSlug}` and the
-              // trackGroup actually lives under `{rosterArtistSlug}`). See #2008.
               profile: true,
               tracks: {
                 where: {

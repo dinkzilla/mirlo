@@ -35,25 +35,27 @@ import {
   getTrackGroupWidget,
   getTrackWidget,
 } from "./parseIndex/widgetUrls";
+import { processSingleArtist } from "./serializers/artist";
+import { postIncludeForUser } from "./serializers/post";
+import { serializeUser } from "./serializers/user";
+import { resolveProfileImageUrl, whereForVisibleProfile } from "./utils/artist";
 import { getClient } from "./utils/getClient";
 import { generateFullStaticImageUrl } from "./utils/images";
 import {
-  finalArtistAvatarBucket,
-  finalArtistBackgroundBucket,
   finalCoversBucket,
   finalMerchImageBucket,
   finalPostImageBucket,
 } from "./utils/minio";
-import { processSingleArtist } from "./serializers/artist";
-import { postIncludeForUser } from "./serializers/post";
 import {
   getCanUserSeePostContent,
   loadPurchasesForPostTracks,
 } from "./utils/postAccess";
-import { serializeUser } from "./serializers/user";
-import { userSelect } from "./utils/user";
 import { getSiteSettings } from "./utils/settings";
-import { whereForPublishedTrackGroups } from "./utils/trackGroup";
+import {
+  whereForPublishedTrackGroups,
+  whereForVisibleTrackGroup,
+} from "./utils/trackGroup";
+import { userSelect } from "./utils/user";
 
 type RouteParams = Record<string, string | number | undefined>;
 
@@ -307,6 +309,7 @@ const handlePost: RouteHandler<PostParams> = async ({
         id: post.id,
         publishedAt: { lte: new Date() },
         isDraft: false,
+        OR: [{ profileId: null }, { profile: whereForVisibleProfile() }],
       },
       include: postIncludeForUser(userId),
     });
@@ -606,47 +609,6 @@ const handleDefault: RouteHandler<{}> = async ({ $, client }) => {
   });
 };
 
-/**
- * Resolve the og:image URL for an artist using a fallback chain
- */
-const resolveArtistImageUrl = (artist: {
-  avatar?: { url: string[] } | null;
-  background?: { url: string[] } | null;
-  trackGroups?: Array<{ cover?: { url: string[] } | null }>;
-}): string | undefined => {
-  // Try avatar first
-  const avatarString = artist.avatar?.url.find((u) => u.includes("x600"));
-  if (avatarString) {
-    return generateFullStaticImageUrl(avatarString, finalArtistAvatarBucket);
-  }
-
-  // Fall back to background
-  const backgroundString = artist.background?.url.find((u) =>
-    u.includes("x625")
-  );
-  if (backgroundString) {
-    return generateFullStaticImageUrl(
-      backgroundString,
-      finalArtistBackgroundBucket
-    );
-  }
-
-  // Fall back to first album cover
-  if (
-    artist.trackGroups?.[0]?.cover?.url &&
-    artist.trackGroups[0].cover.url.length > 0
-  ) {
-    const coverString = artist.trackGroups[0].cover.url.find((u) =>
-      u.includes("x600")
-    );
-    if (coverString) {
-      return generateFullStaticImageUrl(coverString, finalCoversBucket);
-    }
-  }
-
-  return undefined;
-};
-
 type TrackWidgetParams = { trackId: number };
 const handleTrackWidget: RouteHandler<TrackWidgetParams> = async ({
   $,
@@ -654,7 +616,7 @@ const handleTrackWidget: RouteHandler<TrackWidgetParams> = async ({
   hydrations,
 }) => {
   const track = await prisma.track.findFirst({
-    where: { id: trackId },
+    where: { id: trackId, trackGroup: whereForVisibleTrackGroup() },
     include: {
       trackGroup: {
         include: {
@@ -690,7 +652,7 @@ const handleTrackGroupWidget: RouteHandler<TrackGroupWidgetParams> = async ({
   hydrations,
 }) => {
   const trackGroup = await prisma.trackGroup.findFirst({
-    where: { id: trackGroupId },
+    where: { id: trackGroupId, ...whereForVisibleTrackGroup() },
     include: {
       tracks: {
         where: { deletedAt: null, audio: { uploadState: "SUCCESS" } },
@@ -864,7 +826,7 @@ export const analyzePathAndGenerateHTML = async (
     // Try to fetch avatar if artist exists
     let avatarUrl: string | undefined;
     const artist = await prisma.profile.findFirst({
-      where: { urlSlug: segments[0] },
+      where: { urlSlug: segments[0], ...whereForVisibleProfile() },
       include: {
         avatar: true,
         background: true,
@@ -877,7 +839,7 @@ export const analyzePathAndGenerateHTML = async (
       },
     });
     if (artist) {
-      avatarUrl = resolveArtistImageUrl(artist);
+      avatarUrl = resolveProfileImageUrl(artist);
     }
 
     // Match against route patterns using shared matcher

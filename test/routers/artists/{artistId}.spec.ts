@@ -8,6 +8,7 @@ import { describe, it } from "mocha";
 import {
   clearTables,
   createProfile,
+  createTier,
   createTrackGroup,
   createUser,
 } from "../../utils";
@@ -37,6 +38,34 @@ describe("artists", () => {
         .get(`artists/${profileSlug}`)
         .set("Accept", "application/json");
 
+      assert.equal(response.body.result.id, profile.id);
+    });
+
+    it("should GET /{artistId} 404 when the artist is disabled", async () => {
+      const { user } = await createUser({ email: "artist@artist.com" });
+      const profile = await createProfile(user.id, { enabled: false });
+
+      const response = await requestApp
+        .get(`artists/${profile.id}`)
+        .set("Accept", "application/json");
+
+      assert.equal(response.statusCode, 404);
+    });
+
+    it("should GET /{artistId} 200 for an admin when the artist is disabled", async () => {
+      const { user } = await createUser({ email: "artist@artist.com" });
+      const profile = await createProfile(user.id, { enabled: false });
+      const { accessToken } = await createUser({
+        email: "admin@admin.com",
+        isAdmin: true,
+      });
+
+      const response = await requestApp
+        .get(`artists/${profile.id}`)
+        .set("Cookie", [`jwt=${accessToken}`])
+        .set("Accept", "application/json");
+
+      assert.equal(response.statusCode, 200);
       assert.equal(response.body.result.id, profile.id);
     });
 
@@ -101,6 +130,41 @@ describe("artists", () => {
       const trackGroup = response.body.result.trackGroups[0];
       const titles = trackGroup.tracks.map((t: { title: string }) => t.title);
       assert.deepEqual(titles, ["first", "second", "third"]);
+    });
+
+    it("should not include soft-deleted albums in subscriptionTiers releases", async () => {
+      const { user } = await createUser({ email: "tiered@test.com" });
+      const profile = await createProfile(user.id, {
+        name: "Tiered Artist",
+        urlSlug: "tiered-artist",
+      });
+      const tier = await createTier(profile.id, { minAmount: 500 });
+      const keptAlbum = await createTrackGroup(profile.id, {
+        title: "Kept Album",
+        urlSlug: "kept-album",
+      });
+      const deletedAlbum = await createTrackGroup(profile.id, {
+        title: "Deleted Album",
+        urlSlug: "deleted-album",
+      });
+      await prisma.subscriptionTierRelease.createMany({
+        data: [
+          { tierId: tier.id, trackGroupId: keptAlbum.id },
+          { tierId: tier.id, trackGroupId: deletedAlbum.id },
+        ],
+      });
+      await prisma.trackGroup.delete({ where: { id: deletedAlbum.id } });
+
+      const response = await requestApp
+        .get(`artists/${profile.urlSlug}`)
+        .set("Accept", "application/json");
+
+      assert.equal(response.status, 200);
+      const [returnedTier] = response.body.result.subscriptionTiers;
+      const releasedTitles = returnedTier.releases.map(
+        (r: { trackGroup: { title: string } }) => r.trackGroup.title
+      );
+      assert.deepEqual(releasedTitles, ["Kept Album"]);
     });
 
     it("should return an empty user.artistLabels for a label with empty roster", async () => {

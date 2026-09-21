@@ -33,9 +33,7 @@ export default function () {
 
       res.status(200).json({
         result: {
-          price: profile.allowPurchaseEntireCatalog
-            ? await calculateCatalogueFloorPrice(profile)
-            : null,
+          price: await calculateCatalogueFloorPrice(profile),
         },
       });
     } catch (e) {
@@ -58,7 +56,7 @@ export default function () {
     responses: {
       200: {
         description:
-          "The current price in cents, or null if the artist doesn't offer entire-catalogue purchases",
+          "The current price in cents. Defaults to the summed minPrice of all purchasable releases if the artist hasn't configured a discount; 0 if there's nothing purchasable",
       },
       default: {
         description: "An error occurred",
@@ -157,6 +155,8 @@ export default function () {
 
   POST.apiDoc = {
     summary: "Purchase a TrackGroup",
+    deprecated: true,
+    description: "Deprecated — use POST /v1/purchase with a catalogue item.",
     parameters: [
       {
         in: "path",

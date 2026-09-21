@@ -82,7 +82,7 @@ interface Track {
     trackId?: number;
     order: number;
   }[];
-  licenseId?: number;
+  licenseId?: number | null;
   license?: {
     short: string;
     name: string;
@@ -124,6 +124,8 @@ interface TrackGroup {
     goalAmount: number;
     isAllOrNothing: boolean;
     endDate: string;
+    name?: string;
+    description?: string | null;
     status?: "ACTIVE" | "SUCCESSFUL" | "FAILED";
   } | null;
   paymentToUser?: {
@@ -157,6 +159,7 @@ interface TrackGroup {
   isPublic: boolean;
   hasNotifiedFollowers?: boolean;
   totalTracks?: number;
+  deletedAt?: string | null;
 }
 
 interface Post {
@@ -170,6 +173,7 @@ interface Post {
   artistId?: number;
   isContentHidden: boolean;
   minimumSubscriptionTierId?: number;
+  postSubscriptionTiers?: { profileSubscriptionTierId: number }[];
   featuredImageId?: string;
   featuredImage?: { src: string };
   isDraft: boolean;
@@ -537,6 +541,7 @@ interface MerchOption {
 interface MerchOptionType {
   optionName: string;
   id: string;
+  required?: boolean;
   options: MerchOption[];
 }
 
@@ -565,6 +570,13 @@ interface Merch {
   platformPercent?: number;
   externalUrl?: string | null;
   order?: number | null;
+  itemTypeId?: number | null;
+  itemType?: MerchItemType | null;
+}
+
+interface MerchItemType {
+  id: number;
+  name: string;
 }
 
 interface Fundraiser {

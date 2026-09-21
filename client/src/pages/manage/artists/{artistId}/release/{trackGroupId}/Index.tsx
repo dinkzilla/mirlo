@@ -6,6 +6,17 @@ import {
   ArtistButtonLink,
 } from "components/Artist/ArtistButtons";
 import LoadingBlocks from "components/Artist/LoadingBlocks";
+import AlbumForm from "components/ManageArtist/AlbumForm";
+import BackToArtistLink from "components/ManageArtist/BackToArtistLink";
+import ManageSectionWrapper from "components/ManageArtist/ManageSectionWrapper";
+import AlbumPaymentReceiver from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/AlbumPaymentReceiver";
+import ManageTrackDefaults from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/ManageTrackDefaults";
+import MoveReleaseToArtist from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/MoveReleaseToArtist";
+import RecommendedTrackGroups from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/RecommendedTrackGroups";
+import BulkTrackUpload from "components/ManageArtist/ManageTrackGroup/BulkTrackUpload";
+import ManageTrackTable from "components/ManageArtist/ManageTrackGroup/ManageTrackTable";
+import { ZipDropZone } from "components/ManageArtist/ManageTrackGroup/ZipDropZone";
+import DownloadableContent from "components/ManageArtist/Merch/DownloadableContent";
 import {
   queryArtist,
   queryManagedTrackGroup,
@@ -20,17 +31,6 @@ import { useSnackbar } from "state/SnackbarContext";
 import { getArtistManageUrl } from "utils/artist";
 
 import { bp } from "../../../../../../constants";
-import AlbumForm from "components/ManageArtist/AlbumForm";
-import BackToArtistLink from "components/ManageArtist/BackToArtistLink";
-import ManageSectionWrapper from "components/ManageArtist/ManageSectionWrapper";
-import DownloadableContent from "components/ManageArtist/Merch/DownloadableContent";
-
-import AlbumPaymentReceiver from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/AlbumPaymentReceiver";
-import ManageTrackDefaults from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/ManageTrackDefaults";
-import RecommendedTrackGroups from "components/ManageArtist/ManageTrackGroup/AlbumFormComponents/RecommendedTrackGroups";
-import BulkTrackUpload from "components/ManageArtist/ManageTrackGroup/BulkTrackUpload";
-import ManageTrackTable from "components/ManageArtist/ManageTrackGroup/ManageTrackTable";
-import { ZipDropZone } from "components/ManageArtist/ManageTrackGroup/ZipDropZone";
 
 export interface TrackGroupFormData {
   title: string;
@@ -49,6 +49,8 @@ export interface TrackGroupFormData {
   coverImageAlt?: string;
   goalAmount?: string;
   isAllOrNothing?: boolean;
+  fundraiserName?: string;
+  fundraiserDescription?: string;
 }
 
 export const FormSection = styled.div`
@@ -185,6 +187,9 @@ const Index: React.FC<{}> = () => {
       >
         {t("downloadCodes")}
       </ArtistButtonLink>
+      <FormSection>
+        <MoveReleaseToArtist trackGroup={trackGroup} artist={artist} />
+      </FormSection>
       <hr className="my-8 border-(--mi-tint-x-color)" />
       <ArtistButton
         startIcon={<FaTrash />}

@@ -3,6 +3,7 @@ import { Prisma } from "@mirlo/prisma/client";
 import { Request, Response } from "express";
 
 import { serializeUserTransaction } from "../../../../serializers/userTransaction";
+import { findProfileIdForURLSlug } from "../../../../utils/artist";
 
 const constructDateFilter = (
   sinceDate?: string,

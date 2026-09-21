@@ -18,11 +18,12 @@ import { serializeProfile } from "../serializers/artist";
 
 import { AppError } from "./error";
 import { getClient } from "./getClient";
-import { convertURLArrayToSizes } from "./images";
+import { convertURLArrayToSizes, generateFullStaticImageUrl } from "./images";
 import { deleteMerch } from "./merch";
 import {
   finalArtistAvatarBucket,
   finalArtistBackgroundBucket,
+  finalCoversBucket,
   finalUserAvatarBucket,
   removeObjectsFromBucket,
 } from "./minio";
@@ -216,6 +217,11 @@ export const profileOptedOutOrDeleted: Prisma.ProfileWhereInput = {
   OR: [profileNoLongerFederated, profileFederatedButDeleted],
   deletedAt: {}, // this is to avoid the middleware filtering out softDeleted -> /mirlo/prisma/prisma.ts
 };
+
+export const whereForVisibleProfile = (): Prisma.ProfileWhereInput => ({
+  enabled: true,
+  deletedAt: null,
+});
 
 export const findProfileIdForURLSlug = async (id: string | number) => {
   if (typeof id !== "number" && Number.isNaN(Number(id))) {
@@ -629,6 +635,11 @@ export const singleInclude = (queryOptions?: {
           },
         },
         releases: {
+          where: {
+            trackGroup: {
+              deletedAt: null,
+            },
+          },
           select: {
             trackGroup: {
               select: {
@@ -758,6 +769,44 @@ export const addSizesToImage = (
   );
 
   return { ...image, sizes: versionedSizes };
+};
+
+export const resolveProfileImageUrl = (artist: {
+  avatar?: { url: string[] } | null;
+  background?: { url: string[] } | null;
+  trackGroups?: Array<{ cover?: { url: string[] } | null }>;
+}): string | undefined => {
+  // Try avatar first
+  const avatarString = artist.avatar?.url.find((u) => u.includes("x600"));
+  if (avatarString) {
+    return generateFullStaticImageUrl(avatarString, finalArtistAvatarBucket);
+  }
+
+  // Fall back to background
+  const backgroundString = artist.background?.url.find((u) =>
+    u.includes("x625")
+  );
+  if (backgroundString) {
+    return generateFullStaticImageUrl(
+      backgroundString,
+      finalArtistBackgroundBucket
+    );
+  }
+
+  // Fall back to first album cover
+  if (
+    artist.trackGroups?.[0]?.cover?.url &&
+    artist.trackGroups[0].cover.url.length > 0
+  ) {
+    const coverString = artist.trackGroups[0].cover.url.find((u) =>
+      u.includes("x600")
+    );
+    if (coverString) {
+      return generateFullStaticImageUrl(coverString, finalCoversBucket);
+    }
+  }
+
+  return undefined;
 };
 
 /**
