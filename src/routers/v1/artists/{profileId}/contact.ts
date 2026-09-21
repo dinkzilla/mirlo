@@ -1,0 +1,183 @@
+import prisma from "@mirlo/prisma";
+import { User } from "@mirlo/prisma/client";
+import { Job } from "bullmq";
+import { NextFunction, Request, Response } from "express";
+
+import { userAuthenticated } from "../../../../auth/passport";
+import sendMail from "../../../../jobs/send-mail";
+import { serializeProfile } from "../../../../serializers/artist";
+import { checkCloudFlareTurnstile } from "../../../../utils/cloudflare";
+import { AppError } from "../../../../utils/error";
+import { getClient } from "../../../../utils/getClient";
+
+const CONTACT_RATE_LIMIT = 2;
+const SITE_WIDE_CONTACT_RATE_LIMIT = 10;
+const CONTACT_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_MESSAGE_LENGTH = 5000;
+
+export default function () {
+  const operations = {
+    POST: [userAuthenticated, POST],
+  };
+
+  async function POST(req: Request, res: Response, next: NextFunction) {
+    const profileId = res.locals.profileId as number;
+    const { message, cfTurnstile } = req.body as {
+      message?: string;
+      cfTurnstile?: string;
+    };
+    const connectingIP = req.body["CF-Connecting-IP"];
+    const sender = req.user as User;
+
+    try {
+      await checkCloudFlareTurnstile({
+        token: cfTurnstile,
+        ip: connectingIP,
+        missingTokenMessage: "Sounds like a robot",
+        failureMessage: "Sounds like a robot",
+      });
+
+      const trimmed = typeof message === "string" ? message.trim() : "";
+      if (!trimmed) {
+        throw new AppError({
+          httpCode: 400,
+          description: "Message is required",
+        });
+      }
+      if (trimmed.length > MAX_MESSAGE_LENGTH) {
+        throw new AppError({
+          httpCode: 400,
+          description: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer`,
+        });
+      }
+
+      const siteWideRecentCount = await prisma.notification.count({
+        where: {
+          notificationType: "ARTIST_CONTACT_MESSAGE",
+          relatedUserId: sender.id,
+          createdAt: { gte: new Date(Date.now() - CONTACT_RATE_WINDOW_MS) },
+        },
+      });
+      if (siteWideRecentCount >= SITE_WIDE_CONTACT_RATE_LIMIT) {
+        throw new AppError({
+          httpCode: 429,
+          description:
+            "You've reached the daily limit for contacting artists. Try again later.",
+        });
+      }
+
+      const profile = await prisma.profile.findFirst({
+        where: {
+          id: profileId,
+          enabled: true,
+          deletedAt: null,
+        },
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+        },
+      });
+
+      if (!profile) {
+        throw new AppError({ httpCode: 404, description: "Artist not found" });
+      }
+
+      if (profile.user.id === sender.id) {
+        throw new AppError({
+          httpCode: 400,
+          description: "You can't contact yourself",
+        });
+      }
+
+      if (!profile.allowDirectMessages) {
+        throw new AppError({
+          httpCode: 403,
+          description: "This artist is not accepting direct messages",
+        });
+      }
+
+      const recentCount = await prisma.notification.count({
+        where: {
+          notificationType: "ARTIST_CONTACT_MESSAGE",
+          profileId: profile.id,
+          relatedUserId: sender.id,
+          createdAt: { gte: new Date(Date.now() - CONTACT_RATE_WINDOW_MS) },
+        },
+      });
+      if (recentCount >= CONTACT_RATE_LIMIT) {
+        throw new AppError({
+          httpCode: 429,
+          description:
+            "You've reached the daily limit for messaging this artist. Try again later.",
+        });
+      }
+
+      await prisma.notification.create({
+        data: {
+          notificationType: "ARTIST_CONTACT_MESSAGE",
+          userId: profile.user.id,
+          relatedUserId: sender.id,
+          profileId: profile.id,
+          content: trimmed,
+        },
+      });
+
+      const senderName = sender.name || sender.email;
+      sendMail({
+        data: {
+          template: "artist-contact-message",
+          message: {
+            to: profile.user.email,
+            replyTo: sender.email,
+          },
+          locals: {
+            artist: serializeProfile(profile),
+            sender: { name: senderName, email: sender.email },
+            message: trimmed,
+            host: process.env.API_DOMAIN,
+            client: (await getClient()).applicationUrl,
+          },
+        },
+      } as Job);
+
+      return res
+        .status(200)
+        .json({ message: "Message sent to artist successfully" });
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  POST.apiDoc = {
+    summary: "Send a message to an artist",
+    parameters: [
+      {
+        in: "path",
+        name: "profileId",
+        required: true,
+        type: "string",
+        description: "Artist ID or urlSlug",
+      },
+      {
+        in: "body",
+        name: "contact",
+        schema: {
+          type: "object",
+          required: ["message"],
+          properties: {
+            message: { type: "string" },
+            cfTurnstile: { type: "string" },
+          },
+        },
+      },
+    ],
+    responses: {
+      200: { description: "Message sent" },
+      default: {
+        description: "An error occurred",
+        schema: { additionalProperties: true },
+      },
+    },
+  };
+
+  return operations;
+}

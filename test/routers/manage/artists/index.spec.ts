@@ -9,7 +9,7 @@ import { clearTables, createUser } from "../../../utils";
 import { requestApp } from "../../utils";
 import { getSiteSettings } from "../../../../src/utils/settings";
 
-describe("manage/artists/{artistId}", () => {
+describe("manage/artists/{profileId}", () => {
   beforeEach(async () => {
     try {
       await clearTables();

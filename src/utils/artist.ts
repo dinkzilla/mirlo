@@ -36,18 +36,14 @@ import {
 } from "./trackGroup";
 export { serializeProfile };
 
-type Params = {
-  id: string;
-};
-
 export const confirmProfileIdExists = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { id: profileId } = req.params as unknown as Params;
+  const profileId = res.locals.profileId as number | undefined;
 
-  if (!profileId || Number.isNaN(profileId)) {
+  if (profileId === undefined) {
     const error = new AppError({
       name: "Artist ID must be valid number",
       httpCode: 400,
@@ -58,7 +54,7 @@ export const confirmProfileIdExists = async (
   try {
     const profile = await prisma.profile.findFirst({
       where: {
-        id: Number(profileId),
+        id: profileId,
       },
       select: {
         id: true,

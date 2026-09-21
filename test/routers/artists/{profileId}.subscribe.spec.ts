@@ -1,0 +1,392 @@
+import assert from "node:assert";
+
+import * as dotenv from "dotenv";
+dotenv.config();
+
+import { describe, it } from "mocha";
+import sinon from "sinon";
+
+import { getPaymentProcessor } from "../../../src/utils/payments/PaymentProcessor";
+import { stripe } from "../../../src/utils/stripe";
+import { clearTables, createProfile, createUser } from "../../utils";
+import { requestApp } from "../utils";
+
+import prisma from "@mirlo/prisma";
+
+let createTestData = async (stripeAccountId: string | null = "23") => {
+  const { user: profileOwner, accessToken: artistAccessToken } =
+    await createUser({
+      email: "artist@example.com",
+      stripeAccountId: stripeAccountId,
+    });
+
+  const { user: followerUser, accessToken: followerAccessToken } =
+    await createUser({
+      email: "follower@example.com",
+    });
+
+  const profile = await createProfile(profileOwner.id, {
+    subscriptionTiers: {
+      create: [
+        { name: "Tier 1", isDefaultTier: true },
+        { name: "Tier 2", minAmount: 4 },
+      ],
+    },
+  });
+
+  return {
+    profile,
+    profileOwner,
+    artistAccessToken,
+    followerUser,
+    followerAccessToken,
+  };
+};
+
+describe("artists/{profileId}/subscribe", () => {
+  beforeEach(async () => {
+    try {
+      await clearTables();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  describe("POST", () => {
+    it("should return 404 when tier doesn't exist", async () => {
+      const response = await requestApp
+        .post("artists/1/subscribe")
+        .send({
+          tierId: 0,
+          email: "user@example.com",
+          amount: 42,
+        })
+        .set("Accept", "application/json");
+
+      assert.equal(response.status, 404);
+    });
+
+    it("should return 400 when artist hasn't set up Stripe", async () => {
+      const { profileOwner, profile, followerUser } =
+        await createTestData(null);
+
+      const response = await requestApp
+        .post(`artists/${profileOwner.id}/subscribe`)
+        .send({
+          tierId: profile.subscriptionTiers![0].id,
+          email: followerUser.email,
+          amount: 42,
+        })
+        .set("Accept", "application/json");
+
+      assert.equal(response.status, 400);
+    });
+
+    it("returns a hosted Stripe checkout sessionUrl by default for external callers", async () => {
+      const { profileOwner, profile, followerUser } = await createTestData();
+
+      const response = await requestApp
+        .post(`artists/${profileOwner.id}/subscribe`)
+        .send({
+          tierId: profile.subscriptionTiers![0].id,
+          email: followerUser.email,
+          amount: 42,
+        })
+        .set("Accept", "application/json");
+
+      assert.equal(response.status, 200);
+      const body = JSON.parse(response.text);
+      assert.ok(
+        "sessionUrl" in body,
+        `expected sessionUrl key in response, got: ${response.text}`
+      );
+      assert.ok(
+        !("clientSecret" in body),
+        `hosted response should not include clientSecret, got: ${response.text}`
+      );
+      assert.ok(
+        typeof body.stripeAccountId === "string" &&
+          body.stripeAccountId.length > 0,
+        `expected stripeAccountId in response, got: ${response.text}`
+      );
+    });
+
+    it("returns an embedded clientSecret when the caller opts in (#1168)", async () => {
+      const { profileOwner, profile, followerUser } = await createTestData();
+
+      const response = await requestApp
+        .post(`artists/${profileOwner.id}/subscribe`)
+        .send({
+          tierId: profile.subscriptionTiers![0].id,
+          email: followerUser.email,
+          amount: 42,
+          embedded: true,
+        })
+        .set("Accept", "application/json");
+
+      assert.equal(response.status, 200);
+      const body = JSON.parse(response.text);
+      // stripe-mock doesn't populate client_secret for embedded sessions in
+      // its fixture, but real Stripe does. Asserting the field is present
+      // (even null) verifies the embedded branch was taken
+      assert.ok(
+        "clientSecret" in body,
+        `expected clientSecret key in response, got: ${response.text}`
+      );
+      assert.ok(
+        !("sessionUrl" in body),
+        `embedded response should not include sessionUrl, got: ${response.text}`
+      );
+      assert.ok(
+        typeof body.stripeAccountId === "string" &&
+          body.stripeAccountId.length > 0,
+        `expected stripeAccountId in response, got: ${response.text}`
+      );
+    });
+
+    it("should remove user from old subscription tier", async () => {
+      const { profileOwner, profile, followerUser, followerAccessToken } =
+        await createTestData();
+      await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: profile.subscriptionTiers![0].id,
+          userId: followerUser.id,
+          amount: 3,
+        },
+      });
+      const newTierId = profile.subscriptionTiers![1].id;
+      await requestApp
+        .post(`artists/${profileOwner.id}/subscribe`)
+        .send({
+          tierId: newTierId,
+          email: followerUser.email,
+          amount: 0,
+        })
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      const subscriptions = await prisma.profileUserSubscription.findMany({
+        where: {
+          profileSubscriptionTierId: newTierId,
+          userId: followerUser.id,
+        },
+      });
+      assert.equal(subscriptions.length, 0);
+    });
+  });
+
+  describe("DELETE", () => {
+    it("should return 404 when the user has no subscription", async () => {
+      const { profile, followerAccessToken } = await createTestData();
+
+      const response = await requestApp
+        .delete(`artists/${profile.id}/subscribe`)
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      assert.equal(response.status, 404);
+    });
+
+    it("keeps a paid subscription active until period end rather than removing it", async () => {
+      const { profile, followerUser, followerAccessToken } =
+        await createTestData();
+      const paidTier = profile.subscriptionTiers![1]; // Tier 2, minAmount 4
+
+      const subscription = await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: paidTier.id,
+          userId: followerUser.id,
+          amount: 500,
+          stripeSubscriptionKey: "sub_paid_123",
+        },
+      });
+
+      const response = await requestApp
+        .delete(`artists/${profile.id}/subscribe`)
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      assert.equal(response.status, 200);
+
+      // The subscription is still active (deletedAt null, so the soft-delete
+      // read filter still returns it), with the reason recorded now and the
+      // Stripe key kept so the customer.subscription.deleted webhook — which
+      // fires at period end — can match it and finally set deletedAt.
+      const after = await prisma.profileUserSubscription.findFirst({
+        where: { id: subscription.id },
+      });
+      assert.ok(after, "subscription should still be active until period end");
+      assert.equal(after?.deleteReason, "USER_CANCELLED");
+      assert.equal(after?.stripeSubscriptionKey, "sub_paid_123");
+    });
+
+    it("records keepFollowingOnCancel when the user opts to stop payments but keep following", async () => {
+      const { profile, followerUser, followerAccessToken } =
+        await createTestData();
+      const paidTier = profile.subscriptionTiers![1]; // Tier 2, minAmount 4
+
+      const subscription = await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: paidTier.id,
+          userId: followerUser.id,
+          amount: 500,
+          stripeSubscriptionKey: "sub_paid_keep_following",
+        },
+      });
+
+      const response = await requestApp
+        .delete(`artists/${profile.id}/subscribe`)
+        .send({ keepFollowing: true })
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      assert.equal(response.status, 200);
+
+      const after = await prisma.profileUserSubscription.findFirst({
+        where: { id: subscription.id },
+      });
+      assert.equal(after?.keepFollowingOnCancel, true);
+      assert.equal(after?.deleteReason, "USER_CANCELLED");
+    });
+
+    it("removes a free subscription immediately", async () => {
+      const { profile, followerUser, followerAccessToken } =
+        await createTestData();
+      const freeTier = profile.subscriptionTiers![0]; // default tier, no Stripe key
+
+      const subscription = await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: freeTier.id,
+          userId: followerUser.id,
+          amount: 0,
+        },
+      });
+
+      const response = await requestApp
+        .delete(`artists/${profile.id}/subscribe`)
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      assert.equal(response.status, 200);
+
+      const after = await prisma.profileUserSubscription.findFirst({
+        where: { id: subscription.id },
+      });
+      assert.equal(after, null, "free subscription should no longer be active");
+    });
+
+    it("cancels the paid subscription, not a free follow row, when tierId isn't specified", async () => {
+      const { profile, followerUser, followerAccessToken } =
+        await createTestData();
+      const freeTier = profile.subscriptionTiers![0]; // default tier, no Stripe key
+      const paidTier = profile.subscriptionTiers![1]; // Tier 2, minAmount 4
+
+      await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: freeTier.id,
+          userId: followerUser.id,
+          amount: 0,
+        },
+      });
+      const paidSubscription = await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: paidTier.id,
+          userId: followerUser.id,
+          amount: 500,
+          stripeSubscriptionKey: "sub_paid_ambiguous",
+        },
+      });
+
+      const response = await requestApp
+        .delete(`artists/${profile.id}/subscribe`)
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      assert.equal(response.status, 200);
+
+      const paidAfter = await prisma.profileUserSubscription.findFirst({
+        where: { id: paidSubscription.id },
+      });
+      assert.ok(
+        paidAfter,
+        "paid subscription should still be active until period end"
+      );
+      assert.equal(paidAfter?.deleteReason, "USER_CANCELLED");
+      assert.equal(paidAfter?.stripeSubscriptionKey, "sub_paid_ambiguous");
+    });
+
+    it("cancels the row matching an explicit tierId even when another subscription exists for the same artist", async () => {
+      const { profile, followerUser, followerAccessToken } =
+        await createTestData();
+      const freeTier = profile.subscriptionTiers![0]; // default tier, no Stripe key
+      const paidTier = profile.subscriptionTiers![1]; // Tier 2, minAmount 4
+
+      const freeSubscription = await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: freeTier.id,
+          userId: followerUser.id,
+          amount: 0,
+        },
+      });
+      const paidSubscription = await prisma.profileUserSubscription.create({
+        data: {
+          profileSubscriptionTierId: paidTier.id,
+          userId: followerUser.id,
+          amount: 500,
+          stripeSubscriptionKey: "sub_paid_explicit",
+        },
+      });
+
+      const response = await requestApp
+        .delete(`artists/${profile.id}/subscribe`)
+        .send({ tierId: freeTier.id })
+        .set("Accept", "application/json")
+        .set("Cookie", [`jwt=${followerAccessToken}`]);
+
+      assert.equal(response.status, 200);
+
+      const freeAfter = await prisma.profileUserSubscription.findFirst({
+        where: { id: freeSubscription.id },
+      });
+      assert.equal(
+        freeAfter,
+        null,
+        "free subscription targeted by tierId should be removed"
+      );
+
+      const paidAfter = await prisma.profileUserSubscription.findFirst({
+        where: { id: paidSubscription.id },
+      });
+      assert.ok(paidAfter, "paid subscription should be untouched");
+      assert.equal(paidAfter?.deleteReason, null);
+    });
+
+    it("the payment processor asks Stripe to cancel at period end on the connected account", async () => {
+      // Exercised directly (in-process) so we can assert the Stripe params —
+      // the HTTP handler above runs in a separate container where stubs don't
+      // apply. This is the one place the Stripe subscription SDK is touched for
+      // cancellation (StripePaymentProcessor.cancelSubscription).
+      const updateStub = sinon
+        .stub(stripe.subscriptions, "update")
+        .resolves({} as any);
+
+      await getPaymentProcessor().cancelSubscription({
+        subscriptionKey: "sub_paid_456",
+        accountId: "23",
+        atPeriodEnd: true,
+      });
+
+      assert.equal(updateStub.calledOnce, true);
+      assert.equal(updateStub.getCall(0).args[0], "sub_paid_456");
+      assert.deepEqual(updateStub.getCall(0).args[1], {
+        cancel_at_period_end: true,
+      });
+      // Connected-account subscriptions are cancelled on the artist's account
+      assert.deepEqual(updateStub.getCall(0).args[2], { stripeAccount: "23" });
+    });
+  });
+});

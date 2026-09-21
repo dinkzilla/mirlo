@@ -18,6 +18,7 @@ import {
   sanitizeHeadersForLogs,
   sanitizeBodyForLogs,
 } from "./utils/requestLogging";
+import { registerRouteParamResolvers } from "./utils/routeParams";
 import { stripNullBytesFromObject } from "./utils/sanitize";
 const isDev = process.env.NODE_ENV === "development";
 
@@ -90,6 +91,8 @@ apiApp.use(
 // single strings. Collapse duplicates to their first value before the
 // validator sees them.
 apiApp.use("/oembed", dedupeQueryParams(["url", "format"]));
+
+registerRouteParamResolvers(apiApp);
 
 initialize({
   app: apiApp,

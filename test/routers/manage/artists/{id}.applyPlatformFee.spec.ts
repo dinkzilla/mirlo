@@ -15,7 +15,7 @@ import prisma from "@mirlo/prisma";
 
 import { requestApp } from "../../utils";
 
-describe("manage/artists/{artistId}/applyPlatformFee", () => {
+describe("manage/artists/{profileId}/applyPlatformFee", () => {
   beforeEach(async () => {
     try {
       await clearTables();
