@@ -15,7 +15,7 @@ import {
 const baseURL = `${process.env.API_DOMAIN}/v1/`;
 const requestApp = request(baseURL);
 
-describe("manage/artists/{artistId}/posts", () => {
+describe("manage/artists/{profileId}/posts", () => {
   beforeEach(async () => {
     try {
       await clearTables();

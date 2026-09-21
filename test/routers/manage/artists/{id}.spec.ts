@@ -17,7 +17,7 @@ import {
 } from "../../../utils";
 import { requestApp } from "../../utils";
 
-describe("manage/artists/{artistId}", () => {
+describe("manage/artists/{profileId}", () => {
   beforeEach(async () => {
     try {
       await clearTables();

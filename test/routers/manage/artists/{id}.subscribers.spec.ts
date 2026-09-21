@@ -26,7 +26,7 @@ const parseCsvRow = (csvText: string) => {
   return { columns: stripQuotes(headerLine), values: stripQuotes(rowLine) };
 };
 
-describe("manage/artists/{artistId}/subscribers", () => {
+describe("manage/artists/{profileId}/subscribers", () => {
   beforeEach(async () => {
     try {
       await clearTables();

@@ -3,7 +3,7 @@ import { SubscriptionDeleteReason } from "@mirlo/prisma/client";
 import { groupBy, keyBy, uniq } from "lodash";
 
 import logger from "../logger";
-import { findSales } from "../routers/v1/artists/{artistId}/supporters";
+import { findSales } from "../routers/v1/artists/{profileId}/supporters";
 import { getClient } from "../utils/getClient";
 import { serializeProfileUserSubscription } from "../serializers/profileUserSubscription";
 import { serializeUserTransaction } from "../serializers/userTransaction";

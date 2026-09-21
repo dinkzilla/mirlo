@@ -12,7 +12,7 @@ import {
 
 import { requestApp } from "../../utils";
 
-describe("manage/artists/{artistId}/background", () => {
+describe("manage/artists/{profileId}/background", () => {
   beforeEach(async () => {
     try {
       await clearTables();

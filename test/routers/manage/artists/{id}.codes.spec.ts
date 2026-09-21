@@ -13,7 +13,7 @@ import prisma from "@mirlo/prisma";
 
 import { requestApp } from "../../utils";
 
-describe("manage/artists/{artistId}/codes", () => {
+describe("manage/artists/{profileId}/codes", () => {
   beforeEach(async () => {
     try {
       await clearTables();

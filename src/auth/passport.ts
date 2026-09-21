@@ -232,7 +232,7 @@ export const profileBelongsToLoggedInUser = async (
   res: Response,
   next: NextFunction
 ) => {
-  const profileId = res.locals.artistId as number;
+  const profileId = res.locals.profileId as number;
 
   const profileEditableByUserResult = await profileEditableByUser(
     profileId,

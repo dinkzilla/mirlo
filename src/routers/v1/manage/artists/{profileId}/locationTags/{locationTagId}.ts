@@ -1,0 +1,64 @@
+import { NextFunction, Request, Response } from "express";
+import prisma from "@mirlo/prisma";
+import {
+  userAuthenticated,
+  profileBelongsToLoggedInUser,
+} from "../../../../../../auth/passport";
+
+export default function () {
+  const operations = {
+    DELETE: [userAuthenticated, profileBelongsToLoggedInUser, DELETE],
+  };
+
+  async function DELETE(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { locationTagId } = req.params;
+      const profileId = res.locals.profileId as number;
+      const locTagId = parseInt(locationTagId, 10);
+
+      await prisma.profileLocationTag.deleteMany({
+        where: { profileId: profileId, locationTagId: locTagId },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  DELETE.apiDoc = {
+    summary: "Remove a location tag from an artist",
+    tags: ["Artists", "Location Tags"],
+    parameters: [
+      {
+        in: "path",
+        name: "profileId",
+        required: true,
+        type: "string",
+        description: "Artist ID or urlSlug",
+      },
+      {
+        in: "path",
+        name: "locationTagId",
+        required: true,
+        type: "integer",
+        description: "Location tag ID",
+      },
+    ],
+    responses: {
+      200: {
+        description: "Location tag removed from artist",
+        schema: {
+          type: "object",
+          properties: {
+            success: {
+              type: "boolean",
+            },
+          },
+        },
+      },
+    },
+  };
+
+  return operations;
+}

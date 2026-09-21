@@ -15,7 +15,7 @@ import { requestApp } from "../../utils";
 
 import { faker } from "@faker-js/faker";
 
-describe("manage/artists/{artistId}/subscriptionTiers", () => {
+describe("manage/artists/{profileId}/subscriptionTiers", () => {
   beforeEach(async () => {
     try {
       await clearTables();
@@ -57,7 +57,7 @@ describe("manage/artists/{artistId}/subscriptionTiers", () => {
   });
 });
 
-describe("manage/artists/{artistId}/subscriptionTiers/{tierId}", () => {
+describe("manage/artists/{profileId}/subscriptionTiers/{tierId}", () => {
   beforeEach(async () => {
     try {
       await clearTables();

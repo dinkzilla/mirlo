@@ -41,7 +41,7 @@ export const confirmProfileIdExists = async (
   res: Response,
   next: NextFunction
 ) => {
-  const profileId = res.locals.artistId as number | undefined;
+  const profileId = res.locals.profileId as number | undefined;
 
   if (profileId === undefined) {
     const error = new AppError({

@@ -1,7 +1,7 @@
 import prisma from "@mirlo/prisma";
 import { Request, Response } from "express";
 
-import { findSales } from "../../artists/{artistId}/supporters";
+import { findSales } from "../../artists/{profileId}/supporters";
 import { serializeUserTransaction } from "../../../../serializers/userTransaction";
 
 export default function () {

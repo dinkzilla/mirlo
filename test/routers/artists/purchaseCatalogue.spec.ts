@@ -31,7 +31,7 @@ async function createArtistWithPercentageCatalogue(
   return artist;
 }
 
-describe("GET /v1/artists/{artistId}/purchaseCatalogue", () => {
+describe("GET /v1/artists/{profileId}/purchaseCatalogue", () => {
   beforeEach(async () => {
     try {
       await clearTables();
@@ -106,7 +106,7 @@ describe("GET /v1/artists/{artistId}/purchaseCatalogue", () => {
   });
 });
 
-describe("POST /v1/artists/{artistId}/purchaseCatalogue", () => {
+describe("POST /v1/artists/{profileId}/purchaseCatalogue", () => {
   beforeEach(async () => {
     try {
       await clearTables();
